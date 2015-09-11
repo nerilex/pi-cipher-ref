@@ -1,4 +1,4 @@
-/* pi16cipher.c */
+/* pi-cipher.c */
 /*
     This file is part of the AVR-Crypto-Lib.
     Copyright (C) 2006-2015 Daniel Otte (bg@nerilex.org)
@@ -28,23 +28,39 @@
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
+
+#if (PI_WORD_SIZE == 16)
+#  define load_word_little(mem) load_u16_little(mem)
+#  define store_word_little(mem, val) store_u16_little((mem), (val))
+#  define PRI_xw "04"PRIx16
+#elif (PI_WORD_SIZE == 32)
+#  define load_word_little(mem) load_u32_little(mem)
+#  define store_word_little(mem, val) store_u32_little((mem), (val))
+#  define PRI_xw "08"PRIx32
+#elif (PI_WORD_SIZE == 64)
+#  define load_word_little(mem) load_u64_little(mem)
+#  define store_word_little(mem, val) store_u64_little((mem), (val))
+#  define PRI_xw "016"PRIx64
+#endif
+
+
 static word_t rotl(word_t x, uint8_t n)
 {
-    return (x << n) | (x >> (16 - n));
+    return (x << n) | (x >> ((PI_WORD_SIZE) - n));
 }
 
 typedef word_t state_t[4][4];
 
 uint8_t dump;
 
-void dump_state(const word_t* a)
+static void dump_state(const word_t* a)
 {
     if (dump) {
         printf("\tCIS:\n");
-        printf("\t%04"PRIx16" %04"PRIx16" %04"PRIx16" %04"PRIx16"\n",   a[ 0], a[ 1], a[ 2], a[ 3]);
-        printf("\t%04"PRIx16" %04"PRIx16" %04"PRIx16" %04"PRIx16"\n",   a[ 4], a[ 5], a[ 6], a[ 7]);
-        printf("\t%04"PRIx16" %04"PRIx16" %04"PRIx16" %04"PRIx16"\n",   a[ 8], a[ 9], a[10], a[11]);
-        printf("\t%04"PRIx16" %04"PRIx16" %04"PRIx16" %04"PRIx16"\n\n", a[12], a[13], a[14], a[15]);
+        printf("\t%"PRI_xw" %"PRI_xw" %"PRI_xw" %"PRI_xw"\n",   a[ 0], a[ 1], a[ 2], a[ 3]);
+        printf("\t%"PRI_xw" %"PRI_xw" %"PRI_xw" %"PRI_xw"\n",   a[ 4], a[ 5], a[ 6], a[ 7]);
+        printf("\t%"PRI_xw" %"PRI_xw" %"PRI_xw" %"PRI_xw"\n",   a[ 8], a[ 9], a[10], a[11]);
+        printf("\t%"PRI_xw" %"PRI_xw" %"PRI_xw" %"PRI_xw"\n\n", a[12], a[13], a[14], a[15]);
     }
 }
 
@@ -112,17 +128,6 @@ static void store_u16_little(void *mem, uint16_t val)
 	x[1] = val & 0xff;
 }
 
-#if (PI_WORD_SIZE == 16)
-#  define load_word_little(mem) load_u16_little(mem)
-#  define store_word_little(mem, val) store_u16_little((mem), (val)
-#elif (PI_WORD_SIZE == 32)
-#  define load_word_little(mem) load_u32_little(mem)
-#  define store_word_little(mem, val) store_u32_little((mem), (val)
-#elif (PI_WORD_SIZE == 64)
-#  define load_word_little(mem) load_u64_little(mem)
-#  define store_word_little(mem, val) store_u64_little((mem), (val)
-#endif
-
 static void memxor(
 		void *dest,
 		const void *src,
@@ -153,12 +158,7 @@ static void phi(
     i = 4;
     do {
         --i;
-        dest[i] = rotl(
-                c[i] +
-                sum -
-                x[v[i]],
-                rot[i] );
-
+        dest[i] = rotl(c[i] + sum - x[v[i]], rot[i] );
     } while (i);
     sum = 0;
     i = 4;
@@ -173,26 +173,26 @@ static void phi(
     } while (i);
 }
 
-static const word_t mu16_const[4] = PI_MU_CONST;
+static const word_t mu_const[4] = PI_MU_CONST;
 
-static const uint8_t mu16_v_const[4] = PI_MU_V_CONST;
+static const uint8_t mu_v_const[4] = PI_MU_V_CONST;
 
-static const uint8_t mu16_rot_const[4] = PI_MU_ROT_CONST;
+static const uint8_t mu_rot_const[4] = PI_MU_ROT_CONST;
 
-static const word_t ny16_const[4] = PI_NY_CONST;
+static const word_t ny_const[4] = PI_NY_CONST;
 
-static const uint8_t ny16_v_const[4] = PI_NY_V_CONST;
+static const uint8_t ny_v_const[4] = PI_NY_V_CONST;
 
-static const uint8_t ny16_rot_const[4] = PI_NY_ROT_CONST;
+static const uint8_t ny_rot_const[4] = PI_NY_ROT_CONST;
 
-static const word_t pi16_const[8][4] = PI_CONST;
+static const word_t pi_const[8][4] = PI_CONST;
 
 static void mu(
         word_t dest[4],
         const word_t x[4])
 {
     word_t t[4];
-    phi(t, x, mu16_const, mu16_v_const, mu16_rot_const);
+    phi(t, x, mu_const, mu_v_const, mu_rot_const);
     dest[0] = t[2];
     dest[1] = t[3];
     dest[2] = t[0];
@@ -203,7 +203,7 @@ static void ny(
         word_t dest[4],
         const word_t x[4])
 {
-    phi(dest, x, ny16_const, ny16_v_const, ny16_rot_const);
+    phi(dest, x, ny_const, ny_v_const, ny_rot_const);
 }
 
 static void sigma(
@@ -269,7 +269,7 @@ static void pi(
 {
     uint8_t r = PI_ROUNDS;
     word_t t[4 * 4];
-    const word_t *c = (const word_t *)pi16_const;
+    const word_t *c = (const word_t *)pi_const;
     do {
         e1(t, c, a, 4);
         c = &c[4];
@@ -290,20 +290,23 @@ static void add_tag(
     } while(i--);
 }
 
-static void ctr_trans16(
+static void ctr_trans(
         const PI_CTX *ctx,
         state_t a,
         uint16_t ctr )
 {
     uint64_t t;
+    int i;
     if ((void *)ctx->cis != (void *)a) {
         memcpy(a, ctx->cis, sizeof(state_t));
     }
     t = ctx->ctr + ctr;
-    a[0][0] ^= t >> 48;
-    a[0][1] ^= t >> 32;
-    a[0][2] ^= t >> 16;
-    a[0][3] ^= t >>  0;
+    /* endianess ? FIXME */
+    for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
+    	a[0][i] ^= t >> (64 - PI_WORD_SIZE);
+    	t <<= PI_WORD_SIZE;
+    }
+
     pi((word_t*)a);
 }
 
@@ -311,24 +314,45 @@ static void inject_block(
         state_t a,
         const void *block )
 {
-    memxor(&a[0][0], block, 8);
-    memxor(&a[2][0], &((uint8_t*)block)[8], 8);
+	word_t x;
+	int i;
+	for (i = 0; i < 4; ++i) {
+		x = load_word_little(&((const word_t *)block)[i]);
+	    a[0][i] ^= x;
+	}
+	for (; i < 8; ++i) {
+		x = load_word_little(&((const word_t *)block)[i]);
+	    a[2][i - 4] ^= x;
+	}
 }
 
 static void replace_block(
         state_t a,
         const void *block )
 {
-    memcpy(&a[0][0], block, 8);
-    memcpy(&a[2][0], &((uint8_t*)block)[8], 8);
+	word_t x;
+	int i;
+	for (i = 0; i < 4; ++i) {
+		x = load_word_little(&((const word_t *)block)[i]);
+	    a[0][i] = x;
+	}
+	for (; i < 8; ++i) {
+		x = load_word_little(&((const word_t *)block)[i]);
+	    a[2][i - 4] = x;
+	}
 }
 
 static void extract_block(
         void *block,
         state_t a)
 {
-    memcpy(block, a, 8);
-    memcpy(&((uint8_t*)block)[8], &a[2][0], 8);
+	int i;
+	for (i = 0; i < 4; ++i) {
+		store_word_little(&((word_t *)block)[i], a[0][i]);
+	}
+	for (; i < 8; ++i) {
+		store_word_little(&((word_t *)block)[i], a[2][i - 4]);
+	}
 }
 
 
@@ -345,8 +369,7 @@ static void inject_last_block(
     memset(t, 0, sizeof(t));
     memcpy(t, block, (length_b + 7) / 8);
     t[length_b / 8] |= 1 << (length_b & 7);
-    memxor(&a[0][0], t, 8);
-    memxor(&a[2][0], &t[8], 8);
+    inject_block(a, t);
 }
 
 int8_t PI_INIT(
@@ -356,7 +379,11 @@ int8_t PI_INIT(
         const void *pmn,
         uint16_t pmn_length_b)
 {
-    if (key_length_b / 8 + pmn_length_b / 8 + 1 > 4 * 4 * 2) {
+	int i;
+	if ((key_length_b % 8 != 0) || (pmn_length_b % 8 != 0)) {
+		return -1;
+	}
+    if (key_length_b / 8 + pmn_length_b / 8 + 1 > PI_IS_BITS / 8) {
         return -1;
     }
     memset(ctx->tag, 0, sizeof(ctx->tag));
@@ -364,15 +391,18 @@ int8_t PI_INIT(
     memcpy(ctx->cis, key, key_length_b / 8);
     memcpy(&((uint8_t*)ctx->cis)[key_length_b / 8], pmn, pmn_length_b / 8);
     ((uint8_t*)ctx->cis)[key_length_b / 8 + pmn_length_b / 8] = 1;
+
+    dump = 0;
     dump_state((word_t*)ctx->cis);
     pi((word_t*)ctx->cis);
     dump_state((word_t*)ctx->cis);
-    memcpy(&ctx->ctr, &ctx->cis[1][0], 64 / 8);
+    dump = 0;
 
-    ctx->ctr  = (uint64_t)ctx->cis[1][0] << 48;
-    ctx->ctr |= (uint64_t)ctx->cis[1][1] << 32;
-    ctx->ctr |= (uint64_t)ctx->cis[1][2] << 16;
-    ctx->ctr |= (uint64_t)ctx->cis[1][3] <<  0;
+    /* endianes ? FIXME - this is big endian */
+    for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
+    	ctx->ctr <<= PI_WORD_SIZE;
+    	ctx->ctr |= (uint64_t)ctx->cis[1][i];
+    }
 
     printf("ctr: %08"PRIx32"%08"PRIx32"\n",  (uint32_t)(ctx->ctr >> 32), (uint32_t)ctx->ctr);
     return 0;
@@ -384,7 +414,7 @@ void PI_PROCESS_AD_BLOCK(
         uint16_t ad_num )
 {
     state_t a;
-    ctr_trans16(ctx, a, ad_num);
+    ctr_trans(ctx, a, ad_num);
     inject_block(a, ad);
     pi((word_t*)a);
     add_tag(ctx, a);
@@ -398,20 +428,20 @@ void PI_PROCESS_AD_LAST_BLOCK(
 {
     state_t a;
     while (ad_length_b >= PI_AD_BLOCK_LENGTH_BITS) {
-        pi16_process_ad_block(ctx, ad, ad_num);
+        PI_PROCESS_AD_BLOCK(ctx, ad, ad_num);
         ad_num++;
         ad_length_b -= PI_AD_BLOCK_LENGTH_BITS;
         ad = &((uint8_t*)ad)[PI_AD_BLOCK_LENGTH_BYTES];
     }
 
-    ctr_trans16(ctx, a, ad_num);
+    ctr_trans(ctx, a, ad_num);
     inject_last_block(a, ad, ad_length_b);
     pi((word_t*)a);
     {
         int q;
         printf("tempTag: ");
         for (q = 0; q < sizeof(ctx->tag) / sizeof(ctx->tag[0]); q++) {
-            printf("%04"PRIx16" ", ctx->tag[q]);
+            printf("%"PRI_xw" ", ctx->tag[q]);
         }
         printf("\n");
     }
@@ -421,7 +451,7 @@ void PI_PROCESS_AD_LAST_BLOCK(
         int q;
         printf("tempTag: ");
         for (q = 0; q < sizeof(ctx->tag) / sizeof(ctx->tag[0]); q++) {
-            printf("%04"PRIx16" ", ctx->tag[q]);
+            printf("%"PRI_xw" ", ctx->tag[q]);
         }
         printf("\n");
     }
@@ -435,7 +465,7 @@ void PI_PROCESS_SMN(
         const void *smn)
 {
     ctx->ctr++;
-    ctr_trans16(ctx, ctx->cis, 0);
+    ctr_trans(ctx, ctx->cis, 0);
     inject_block(ctx->cis, smn);
     if (c0) {
         extract_block(c0, ctx->cis);
@@ -451,7 +481,7 @@ void PI_ENCRYPT_BLOCK(
         uint16_t num )
 {
     state_t a;
-    ctr_trans16(ctx, a, num);
+    ctr_trans(ctx, a, num);
     inject_block(a, src);
     if (dest) {
         extract_block(dest, a);
@@ -469,7 +499,7 @@ void PI_ENCRYPT_LAST_BLOCK(
 {
     state_t a;
     while (length_b >= PI_PT_BLOCK_LENGTH_BITS) {
-        pi16_encrypt_block(ctx, dest, src, num);
+        PI_ENCRYPT_BLOCK(ctx, dest, src, num);
         num++;
         length_b -= PI_PT_BLOCK_LENGTH_BITS;
         src = &((uint8_t*)src)[PI_PT_BLOCK_LENGTH_BYTES];
@@ -477,7 +507,7 @@ void PI_ENCRYPT_LAST_BLOCK(
             dest = &((uint8_t*)dest)[PI_CT_BLOCK_LENGTH_BYTES];
         }
     }
-    ctr_trans16(ctx, a, num);
+    ctr_trans(ctx, a, num);
     inject_last_block(a, src, length_b);
     if (dest) {
         uint8_t tmp[PI_PT_BLOCK_LENGTH_BYTES];
@@ -502,7 +532,7 @@ void PI_DECRYPT_BLOCK(
         uint16_t num )
 {
     state_t a;
-    ctr_trans16(ctx, a, num);
+    ctr_trans(ctx, a, num);
     inject_block(a, src);
     if (dest) {
         extract_block(dest, a);
@@ -521,7 +551,7 @@ void PI_DECRYPT_LAST_BLOCK(
         uint16_t *length_b,
         uint16_t num )
 {
-    pi16_decrypt_block(ctx, dest, src, num);
+    PI_DECRYPT_BLOCK(ctx, dest, src, num);
     *length_b = PI_CT_BLOCK_LENGTH_BITS;
     while (*length_b > 0 && GET_BIT(dest, *length_b) == 0)
     {
@@ -548,7 +578,7 @@ void PI_ENCRYPT_SIMPLE(
     unsigned i;
     PI_CTX ctx;
     dump = 0;
-    if (pi16_init(&ctx, key, key_len_B * 8, nonce_public, nonce_public_len_B * 8)) {
+    if (PI_INIT(&ctx, key, key_len_B * 8, nonce_public, nonce_public_len_B * 8)) {
         printf("ERROR! <%s %s %d>\n", __FILE__, __func__, __LINE__);
         return;
     }
@@ -556,30 +586,30 @@ void PI_ENCRYPT_SIMPLE(
     dump_state((word_t*)ctx.cis);
     dump = 0;
     while (ad_len_B > PI_AD_BLOCK_LENGTH_BYTES) {
-        pi16_process_ad_block(&ctx, ad, i++);
+        PI_PROCESS_AD_BLOCK(&ctx, ad, i++);
         ad_len_B -= PI_AD_BLOCK_LENGTH_BYTES;
         ad = &((const uint8_t*)ad)[PI_AD_BLOCK_LENGTH_BYTES];
     }
-    dump = 1;
-    pi16_process_ad_last_block(&ctx, ad, ad_len_B * 8, i);
+    dump = 0;
+    PI_PROCESS_AD_LAST_BLOCK(&ctx, ad, ad_len_B * 8, i);
     dump_state((word_t*)ctx.cis);
     *cipher_len_B = 0;
     if (nonce_secret) {
-        pi16_process_smn(&ctx, cipher, nonce_secret);
+        PI_PROCESS_SMN(&ctx, cipher, nonce_secret);
         *cipher_len_B += PI_CT_BLOCK_LENGTH_BYTES;
         cipher = &((uint8_t*)cipher)[PI_CT_BLOCK_LENGTH_BYTES];
     }
     i = 1;
     while (msg_len_B > PI_PT_BLOCK_LENGTH_BYTES) {
-        pi16_encrypt_block(&ctx, cipher, msg, i++);
+        PI_ENCRYPT_BLOCK(&ctx, cipher, msg, i++);
         msg = &((const uint8_t*)msg)[PI_PT_BLOCK_LENGTH_BYTES];
         cipher = &((uint8_t*)cipher)[PI_CT_BLOCK_LENGTH_BYTES];
         *cipher_len_B += PI_CT_BLOCK_LENGTH_BYTES;
         msg_len_B -= PI_PT_BLOCK_LENGTH_BYTES;
     }
-    pi16_encrypt_last_block(&ctx, cipher, msg, msg_len_B * 8, i);
+    PI_ENCRYPT_LAST_BLOCK(&ctx, cipher, msg, msg_len_B * 8, i);
     *cipher_len_B += msg_len_B;
-    pi16_extract_tag(&ctx, tag);
+    PI_EXTRACT_TAG(&ctx, tag);
     *tag_length_B = PI_TAG_BYTES;
 }
 

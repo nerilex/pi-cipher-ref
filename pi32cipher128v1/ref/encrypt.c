@@ -23,11 +23,25 @@ typedef unsigned long long    u_int64_t;
 #define N 4           // Number of chunks of the Internal State
 #define WORDS_CHUNK 4 // Number of w-bit words in one chunk
 #define IS_SIZE (N*4) // Size of the Internal State
-#define R 4           // Tweakable parameter R, that represents the number of rounds in pi-function
+#define R 3           // Tweakable parameter R, that represents the number of rounds in pi-function
 #define bSMN CRYPTO_NSECBYTES/W // Offset for storing ciphertext after encrypted SMN
 
 // **ATTENTION** word_size is in a corellation with data type of InternalState (u_int32_t)
 u_int32_t IS[ IS_SIZE ];
+
+static void dump_state(const u_int32_t *a)
+{
+	int i;
+	for (i = 0; i < 16; ++i) {
+		if (i % 4 == 0) {
+			putchar('\t');
+		}
+		printf("%08lx ", a[i]);
+		if (i % 4 == 3) {
+			putchar('\n');
+		}
+	}
+}
 
 // initialization of the constants, used for the rounds
 const u_int32_t Constant[] = {
@@ -91,7 +105,6 @@ const u_int32_t Constant[] = {
 			      IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3], \
 			      IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
 	} \
-	\
 	ARX32(IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3], \
 		  Constant[8*RoundNumber+4], Constant[8*RoundNumber+5], Constant[8*RoundNumber+6], Constant[8*RoundNumber+7],\
 		  IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3]); \
@@ -176,8 +189,14 @@ const unsigned char *k
  // appending a single 1 to the concatenated value of the key and PMN
  InternalState8[i] = 0x01;
 
+ printf("== after padding ==\n");
+ dump_state(IS);
+
  // applying the permutation function pi
  pi();
+
+ printf("== after pi ==\n");
+ dump_state(IS);
 
  // initialization of the Common Internal State (CIS), common for all parallel invocations of pi() with different ctrs
  for ( i = 0; i < IS_SIZE; i++ ) {
@@ -186,7 +205,7 @@ const unsigned char *k
 
  // initialization of the ctr obtained from the first 64 bits of the capacity of CIS
  ctr = ((u_int64_t) CIS[4] << 32) ^ (u_int64_t) CIS[5];
- 
+ printf("ctr = %llx\n", ctr);
 // phase 2: Processing the associated data
  b = 0;
  a = adlen/RATE;

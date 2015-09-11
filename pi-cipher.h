@@ -44,7 +44,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if PI_SIZE == 16
 #include "pi16_parameter.h"
+#elif PI_SIZE == 32
+#include "pi32_parameter.h"
+#else
+#error please define PI_SIZE
+#endif
 
 #define PI_N 4
 
@@ -70,6 +76,8 @@
 
 #define PI_ROUNDS 3
 
+#define PI_MU_V_CONST { 3, 2, 1, 0 }
+#define PI_NY_V_CONST { 1, 0, 3, 2 }
 
 #define CTX_NAME(x)                     pi ## x ## _ctx_t
 #define INIT_NAME(x)                    pi ## x ## _init

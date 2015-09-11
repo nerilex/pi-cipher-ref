@@ -18,13 +18,10 @@ typedef uint16_t word_t;
 
 #define PI_MU_CONST { 0xF0E8, 0xE4E2, 0xE1D8, 0xD4D2 }
 
-#define PI_MU_V_CONST { 3, 2, 1, 0 }
-
 #define PI_MU_ROT_CONST { 1, 4, 9, 11 }
 
 #define PI_NY_CONST { 0xD1CC, 0xCAC9, 0xC6C5, 0xC3B8 }
 
-#define PI_NY_V_CONST { 1, 0, 3, 2 }
 
 #define PI_NY_ROT_CONST { 2, 5, 7, 13 }
 

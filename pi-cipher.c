@@ -398,6 +398,7 @@ int8_t PI_INIT(
     dump_state((word_t*)ctx->cis);
     dump = 0;
 
+    ctx->ctr = 0;
     /* endianes ? FIXME - this is big endian */
     for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
     	ctx->ctr <<= PI_WORD_SIZE;

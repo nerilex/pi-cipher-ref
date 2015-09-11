@@ -48,6 +48,8 @@
 #include "pi16_parameter.h"
 #elif PI_SIZE == 32
 #include "pi32_parameter.h"
+#elif PI_SIZE == 64
+#include "pi64_parameter.h"
 #else
 #error please define PI_SIZE
 #endif

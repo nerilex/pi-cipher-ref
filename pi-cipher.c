@@ -310,6 +310,20 @@ static void ctr_trans(
     pi((word_t*)a);
 }
 
+static void inject_tag(
+        state_t a,
+        const word_t x[8] )
+{
+	int i;
+	for (i = 0; i < 4; ++i) {
+	    a[0][i] ^= x[i];
+	}
+	for (; i < 8; ++i) {
+	    a[2][i - 4] ^= x[i];
+	}
+}
+
+
 static void inject_block(
         state_t a,
         const void *block )
@@ -364,6 +378,7 @@ static void inject_last_block(
     uint8_t t[PI_RATE_BYTES];
     if (length_b >= PI_RATE_BITS) {
         /* error */
+    	printf("ERROR <%s %s %d>\n", __FILE__, __func__, __LINE__);
         return;
     }
     memset(t, 0, sizeof(t));
@@ -380,6 +395,7 @@ int8_t PI_INIT(
         uint16_t pmn_length_b)
 {
 	int i;
+	uint8_t setup_buf[PI_IS_BITS / 8];
 	if ((key_length_b % 8 != 0) || (pmn_length_b % 8 != 0)) {
 		return -1;
 	}
@@ -387,12 +403,15 @@ int8_t PI_INIT(
         return -1;
     }
     memset(ctx->tag, 0, sizeof(ctx->tag));
-    memset(ctx->cis, 0, sizeof(ctx->cis));
-    memcpy(ctx->cis, key, key_length_b / 8);
-    memcpy(&((uint8_t*)ctx->cis)[key_length_b / 8], pmn, pmn_length_b / 8);
-    ((uint8_t*)ctx->cis)[key_length_b / 8 + pmn_length_b / 8] = 1;
+    memset(setup_buf, 0, sizeof(ctx->cis));
+    memcpy(setup_buf, key, key_length_b / 8);
+    memcpy(&setup_buf[key_length_b / 8], pmn, pmn_length_b / 8);
+    setup_buf[key_length_b / 8 + pmn_length_b / 8] = 1;
+    for (i = 0; i < 16; ++i) {
+        ctx->cis[i / 4][i % 4] = load_word_little(&setup_buf[i * PI_WORD_SIZE / 8]);
+    }
 
-    dump = 0;
+    dump = 1;
     dump_state((word_t*)ctx->cis);
     pi((word_t*)ctx->cis);
     dump_state((word_t*)ctx->cis);
@@ -456,7 +475,7 @@ void PI_PROCESS_AD_LAST_BLOCK(
         }
         printf("\n");
     }
-    inject_block(ctx->cis, ctx->tag);
+    inject_tag(ctx->cis, ctx->tag);
     pi((word_t*)ctx->cis);
 }
 
@@ -523,7 +542,12 @@ void PI_EXTRACT_TAG(
         PI_CTX *ctx,
         void *dest )
 {
-    memcpy(dest, ctx->tag, PI_TAG_BYTES);
+	uint8_t buf[8 * PI_WORD_SIZE / 8];
+	int i;
+	for (i = 0; i < 8; ++i) {
+		store_word_little(&buf[i * PI_WORD_SIZE / 8], ctx->tag[i]);
+	}
+    memcpy(dest, buf, PI_TAG_BYTES);
 }
 
 void PI_DECRYPT_BLOCK(
@@ -591,9 +615,10 @@ void PI_ENCRYPT_SIMPLE(
         ad_len_B -= PI_AD_BLOCK_LENGTH_BYTES;
         ad = &((const uint8_t*)ad)[PI_AD_BLOCK_LENGTH_BYTES];
     }
-    dump = 0;
     PI_PROCESS_AD_LAST_BLOCK(&ctx, ad, ad_len_B * 8, i);
+    dump = 1;
     dump_state((word_t*)ctx.cis);
+    dump = 0;
     *cipher_len_B = 0;
     if (nonce_secret) {
         PI_PROCESS_SMN(&ctx, cipher, nonce_secret);

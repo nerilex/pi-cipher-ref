@@ -10,7 +10,7 @@ clean:
 	
 test: main
 
-main: main.c pi-cipher.o pi$(PI_SIZE)cipher128v1/ref/encrypt.c
+main: main.c pi-cipher.o pi$(PI_SIZE)cipher128v1/ref/*.c
 	$(CC) $(CFLAGS) -o $@ $^
 	
 pi-cipher.o: pi-cipher.c pi-cipher.h pi$(PI_SIZE)_parameter.h

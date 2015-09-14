@@ -90,14 +90,14 @@ void hexdump_block(
 #if 1
 void testrun_pi(void)
 {
-    const uint8_t key[16] = { 0 };
+    const uint8_t key[16] = { 15, 14, 13, 12 , 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
     uint8_t msg[19] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 };
-    const uint8_t ad[17] = { 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 39, 31 };
+    const uint8_t ad[17] = { 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34 };
     uint8_t nsec[16] = { 0xff, 0x00, 0xff, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 };
     const uint8_t npub[4] = { 10, 11, 12, 13 };
     uint8_t crypt[16 + 19 + 16];
     uint8_t *tag = &crypt[16 + 19];
-    uint16_t crypt_len, tag_len, msg_len = sizeof(msg);
+    size_t crypt_len, tag_len, msg_len = sizeof(msg);
     int v;
     pi16_encrypt_simple(crypt, &crypt_len, tag, &tag_len, msg, sizeof(msg), ad, sizeof(ad), nsec, npub, sizeof(npub), key, sizeof(key));
     DUMP(key);
@@ -175,14 +175,14 @@ const unsigned char *k
 /* 16-bit */
 void testrun_ref(void)
 {
-    const char key[16] = { 0 };
+    const char key[16] = { 15, 14, 13, 12 , 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
     char msg[19] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 };
-    const char ad[17] = { 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 39, 31 };
+    const uint8_t ad[17] = { 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34 };
     uint8_t nsec[16] = { 0xff, 0x00, 0xff, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 };
     const char npub[4] = { 10, 11, 12, 13 };
     char crypt[16 + 19 + 16];
     char *tag = &crypt[16 + 19];
-    unsigned long crypt_len, tag_len = 16, msg_len = sizeof(msg);
+    unsigned long long crypt_len, tag_len = 16, msg_len = sizeof(msg);
     crypto_aead_encrypt(crypt, &crypt_len, msg, sizeof(msg), ad, sizeof(ad), nsec, npub, key);
     DUMP(key);
     DUMP(msg);

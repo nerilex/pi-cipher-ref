@@ -39,10 +39,18 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#define SUPERCOP 0
 
+#if SUPERCOP
+typedef u8 uint8_t;
+typedef u16 uint16_t;
+typedef u32 uint32_t;
+typedef u64 uint64_t;
+#else
 #include <inttypes.h>
-#include <stdlib.h>
-#include <string.h>
+#endif
+
+#include <stddef.h>
 
 #if PI_SIZE == 16
 #include "pi16_parameter.h"
@@ -86,6 +94,7 @@
 #define PROCESS_AD_BLOCK_NAME(x)        pi ## x ## _process_ad_block
 #define PROCESS_AD_LAST_BLOCK_NAME(x)   pi ## x ## _process_ad_last_block
 #define PROCESS_SMN_NAME(x)             pi ## x ## _process_smn
+#define DECRYPT_SMN_NAME(x)             pi ## x ## _decrypt_smn
 #define ENCRYPT_BLOCK_NAME(x)           pi ## x ## _encrypt_block
 #define ENCRYPT_LAST_BLOCK_NAME(x)      pi ## x ## _encrypt_last_block
 #define EXTRACT_TAG_NAME(x)             pi ## x ## _extract_tag
@@ -101,6 +110,7 @@
 #define PI_PROCESS_AD_BLOCK             NAME(PROCESS_AD_BLOCK_NAME, PI_WORD_SIZE)
 #define PI_PROCESS_AD_LAST_BLOCK        NAME(PROCESS_AD_LAST_BLOCK_NAME, PI_WORD_SIZE)
 #define PI_PROCESS_SMN                  NAME(PROCESS_SMN_NAME, PI_WORD_SIZE)
+#define PI_DECRYPT_SMN                  NAME(DECRYPT_SMN_NAME, PI_WORD_SIZE)
 #define PI_ENCRYPT_BLOCK                NAME(ENCRYPT_BLOCK_NAME, PI_WORD_SIZE)
 #define PI_ENCRYPT_LAST_BLOCK           NAME(ENCRYPT_LAST_BLOCK_NAME, PI_WORD_SIZE)
 #define PI_EXTRACT_TAG                  NAME(EXTRACT_TAG_NAME, PI_WORD_SIZE)
@@ -118,20 +128,20 @@ typedef struct {
 int8_t PI_INIT(
         PI_CTX *ctx,
         const void *key,
-        uint16_t key_length_b,
+        size_t key_length_b,
         const void *pmn,
-        uint16_t pmn_length_b);
+        size_t pmn_length_b);
 
 void PI_PROCESS_AD_BLOCK(
         PI_CTX *ctx,
         const void *ad,
-        uint16_t ad_num );
+        unsigned long ad_num );
 
 void PI_PROCESS_AD_LAST_BLOCK(
         PI_CTX *ctx,
         const void *ad,
-        uint16_t ad_length_b,
-        uint16_t ad_num );
+        size_t ad_length_b,
+        unsigned long ad_num );
 
 void PI_PROCESS_SMN(
         PI_CTX *ctx,
@@ -142,14 +152,14 @@ void PI_ENCRYPT_BLOCK(
         PI_CTX *ctx,
         void *dest,
         const void *src,
-        uint16_t num );
+		unsigned long  num );
 
 void PI_ENCRYPT_LAST_BLOCK(
         PI_CTX *ctx,
         void *dest,
         const void *src,
-        uint16_t length_b,
-        uint16_t num );
+        size_t length_b,
+		unsigned long  num );
 
 void PI_EXTRACT_TAG(
         PI_CTX *ctx,
@@ -159,43 +169,43 @@ void PI_DECRYPT_BLOCK(
         PI_CTX *ctx,
         void *dest,
         const void *src,
-        uint16_t num );
+		unsigned long  num );
 
 void PI_DECRYPT_LAST_BLOCK(
         PI_CTX *ctx,
         void *dest,
         const void *src,
-        uint16_t length_b,
-        uint16_t num );
+        size_t length_b,
+		unsigned long  num );
 
 void PI_ENCRYPT_SIMPLE(
         void *cipher,
-        uint16_t *cipher_len_B,
+        size_t *cipher_len_B,
         void *tag,
-        uint16_t *tag_length_B,
+        size_t *tag_length_B,
         const void *msg,
-        uint16_t msg_len_B,
+        size_t msg_len_B,
         const void *ad,
-        uint16_t ad_len_B,
+        size_t ad_len_B,
         const void *nonce_secret,
         const void *nonce_public,
-        uint16_t nonce_public_len_B,
+        size_t nonce_public_len_B,
         const void *key,
-        uint16_t key_len_B
+        size_t key_len_B
         );
 
 int PI_DECRYPT_SIMPLE(
         void *msg,
-        uint16_t *msg_len_B,
+        size_t *msg_len_B,
 		void *nonce_secret,
 		const void *cipher,
-        uint16_t cipher_len_B,
+        size_t cipher_len_B,
         const void *ad,
-        uint16_t ad_len_B,
+        size_t ad_len_B,
         const void *nonce_public,
-        uint16_t nonce_public_len_B,
+        size_t nonce_public_len_B,
         const void *key,
-        uint16_t key_len_B
+        size_t key_len_B
         );
 
 #endif /* PI_CIPHER_H_ */

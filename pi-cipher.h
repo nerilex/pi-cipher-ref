@@ -41,6 +41,9 @@
 
 #define SUPERCOP 0
 
+/* please define PI_SIZE acoording to the primitive to implement (pi16cipher, pi32cipher or pi64cipher) */
+/* # define PI_SIZE 16 */
+
 #if SUPERCOP
 typedef u8 uint8_t;
 typedef u16 uint16_t;

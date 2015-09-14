@@ -1,4 +1,7 @@
-CFLAGS = "-DPI_SIZE=64"
+PI_SIZE = 16
+
+
+CFLAGS = "-DPI_SIZE=$(PI_SIZE)"
 
 all: test
 
@@ -7,8 +10,8 @@ clean:
 	
 test: main
 
-main: main.c pi-cipher.o pi64cipher128v1/ref/encrypt.c
+main: main.c pi-cipher.o pi$(PI_SIZE)cipher128v1/ref/encrypt.c
 	$(CC) $(CFLAGS) -o $@ $^
 	
-pi-cipher.o: pi-cipher.c pi-cipher.h pi64_parameter.h
+pi-cipher.o: pi-cipher.c pi-cipher.h pi$(PI_SIZE)_parameter.h
 	$(CC) $(CFLAGS) -c -o $@ $<

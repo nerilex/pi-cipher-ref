@@ -51,7 +51,8 @@ char *algo_name = "pi-cipher";
  *  additional validation-functions                                          *
  *****************************************************************************/
 
-hexdump_block(
+static
+void hexdump_block(
 		const void *data,
 		size_t length,
 		unsigned short indent,
@@ -86,29 +87,39 @@ hexdump_block(
 
 #define DUMP(x) DUMP_LEN(x, (sizeof(x)))
 
-#if 0
-void testrun_pi16(void)
+#if 1
+void testrun_pi(void)
 {
     const uint8_t key[16] = { 0 };
-    const uint8_t msg[1] = { 0xf };
-    const uint8_t ad[1] = { 0 };
-    const uint8_t nsec[16] = { 0 };
-    const uint8_t npub[4] = { 0 };
-    uint8_t crypt[16 + 1];
-    uint8_t tag[16];
-    uint16_t crypt_len, tag_len;
+    uint8_t msg[19] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 };
+    const uint8_t ad[17] = { 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 39, 31 };
+    uint8_t nsec[16] = { 0xff, 0x00, 0xff, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 };
+    const uint8_t npub[4] = { 10, 11, 12, 13 };
+    uint8_t crypt[16 + 19 + 16];
+    uint8_t *tag = &crypt[16 + 19];
+    uint16_t crypt_len, tag_len, msg_len = sizeof(msg);
+    int v;
     pi16_encrypt_simple(crypt, &crypt_len, tag, &tag_len, msg, sizeof(msg), ad, sizeof(ad), nsec, npub, sizeof(npub), key, sizeof(key));
     DUMP(key);
     DUMP(msg);
     DUMP(ad);
     DUMP(nsec);
     DUMP(npub);
-    DUMP(crypt);
-    DUMP(tag);
+    DUMP_LEN(crypt, crypt_len);
+    DUMP_LEN(tag, tag_len);
+    puts("");
+    v = pi16_decrypt_simple(msg, &msg_len, nsec, crypt, crypt_len + tag_len, ad, sizeof(ad), npub, sizeof(npub), key, sizeof(key));
+    DUMP(key);
+    DUMP(msg);
+    DUMP(ad);
+    DUMP(nsec);
+    DUMP(npub);
+    DUMP_LEN(crypt, crypt_len);
+    printf("\nverification: >> %s (%d) <<\n", v ? "FAILED!" : "ok", v);
     puts("");
 }
 #elif 0
-void testrun_pi32(void)
+void testrun_pi(void)
 {
     const uint8_t key[16] = { 0 };
     const uint8_t msg[1] = { 0xf };
@@ -160,8 +171,29 @@ const unsigned char *npub,
 const unsigned char *k
 );
 
-#if 0
-/* 32-bit */
+#if 1
+/* 16-bit */
+void testrun_ref(void)
+{
+    const char key[16] = { 0 };
+    char msg[19] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 };
+    const char ad[17] = { 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 39, 31 };
+    uint8_t nsec[16] = { 0xff, 0x00, 0xff, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 };
+    const char npub[4] = { 10, 11, 12, 13 };
+    char crypt[16 + 19 + 16];
+    char *tag = &crypt[16 + 19];
+    unsigned long crypt_len, tag_len = 16, msg_len = sizeof(msg);
+    crypto_aead_encrypt(crypt, &crypt_len, msg, sizeof(msg), ad, sizeof(ad), nsec, npub, key);
+    DUMP(key);
+    DUMP(msg);
+    DUMP(ad);
+    DUMP(nsec);
+    DUMP(npub);
+    DUMP_LEN(crypt, crypt_len);
+    DUMP_LEN(tag, tag_len);
+    puts("");
+}
+#elif 0/* 32-bit */
 void testrun_ref(void)
 {
     const char key[16] = { 0 };
@@ -200,7 +232,7 @@ void testrun_ref(void)
     DUMP(ad);
     DUMP(nsec);
     DUMP(npub);
-    DUMP_LEN(crypt, 64 + 1);
+    DUMP_LEN(crypt, crypt_len);
     DUMP_LEN(tag, tag_len);
     puts("");
 }

@@ -23,7 +23,7 @@ typedef unsigned long long    u_int64_t;
 #define N 4           // Number of chunks of the Internal State
 #define WORDS_CHUNK 4 // Number of w-bit words in one chunk
 #define IS_SIZE (N*4) // Size of the Internal State
-#define R 4 	      // Tweakable parameter R, that represents the number of rounds in pi-function
+#define R 3 	      // Tweakable parameter R, that represents the number of rounds in pi-function
 #define bSMN CRYPTO_NSECBYTES/W // Offset for storing ciphertext after encrypted SMN
 
 // **ATTENTION** word_size is in a corellation with data type of InternalState (u_int16_t)

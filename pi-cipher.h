@@ -92,6 +92,7 @@
 #define DECRYPT_BLOCK_NAME(x)           pi ## x ## _decrypt_block
 #define DECRYPT_LAST_BLOCK_NAME(x)      pi ## x ## _decrypt_last_block
 #define ENCRYPT_SIMPLE_NAME(x)          pi ## x ## _encrypt_simple
+#define DECRYPT_SIMPLE_NAME(x)          pi ## x ## _decrypt_simple
 
 #define NAME(f,x) f(x)
 
@@ -106,6 +107,7 @@
 #define PI_DECRYPT_BLOCK                NAME(DECRYPT_BLOCK_NAME, PI_WORD_SIZE)
 #define PI_DECRYPT_LAST_BLOCK           NAME(DECRYPT_LAST_BLOCK_NAME, PI_WORD_SIZE)
 #define PI_ENCRYPT_SIMPLE               NAME(ENCRYPT_SIMPLE_NAME, PI_WORD_SIZE)
+#define PI_DECRYPT_SIMPLE               NAME(DECRYPT_SIMPLE_NAME, PI_WORD_SIZE)
 
 typedef struct {
     word_t cis[4][4];
@@ -163,7 +165,7 @@ void PI_DECRYPT_LAST_BLOCK(
         PI_CTX *ctx,
         void *dest,
         const void *src,
-        uint16_t *length_b,
+        uint16_t length_b,
         uint16_t num );
 
 void PI_ENCRYPT_SIMPLE(
@@ -182,5 +184,18 @@ void PI_ENCRYPT_SIMPLE(
         uint16_t key_len_B
         );
 
+int PI_DECRYPT_SIMPLE(
+        void *msg,
+        uint16_t *msg_len_B,
+		void *nonce_secret,
+		const void *cipher,
+        uint16_t cipher_len_B,
+        const void *ad,
+        uint16_t ad_len_B,
+        const void *nonce_public,
+        uint16_t nonce_public_len_B,
+        const void *key,
+        uint16_t key_len_B
+        );
 
 #endif /* PI_CIPHER_H_ */

@@ -53,6 +53,36 @@ typedef word_t state_t[4][4];
 
 uint8_t dump;
 
+static
+void hexdump_block(
+		const void *data,
+		size_t length,
+		unsigned short indent,
+		unsigned short width)
+{
+	unsigned short column = 0;
+	char f = 0;
+	while (length--) {
+		if (column == 0) {
+			unsigned short i;
+			if (f) {
+				putchar('\n');
+			} else {
+				f = 1;
+			}
+			for (i = 0; i < indent; ++i) {
+				putchar(' ');
+			}
+			column = width;
+		}
+		column -= 1;
+		printf("%02x ", *((unsigned char *)data));
+		data = (void *)((char *)data + 1);
+	}
+}
+
+
+
 static void dump_state(const word_t* a)
 {
     if (dump) {
@@ -323,6 +353,18 @@ static void inject_tag(
 	}
 }
 
+static void extract_block(
+        void *block,
+        state_t a)
+{
+	int i;
+	for (i = 0; i < 4; ++i) {
+		store_word_little(&((word_t *)block)[i], a[0][i]);
+	}
+	for (; i < 8; ++i) {
+		store_word_little(&((word_t *)block)[i], a[2][i - 4]);
+	}
+}
 
 static void inject_block(
         state_t a,
@@ -338,6 +380,23 @@ static void inject_block(
 		x = load_word_little(&((const word_t *)block)[i]);
 	    a[2][i - 4] ^= x;
 	}
+}
+
+static void inject_last_block(
+        state_t a,
+        const void *block,
+        uint16_t length_b )
+{
+    uint8_t t[PI_RATE_BYTES];
+    if (length_b >= PI_RATE_BITS) {
+        /* error */
+    	printf("ERROR <%s %s %d>\n", __FILE__, __func__, __LINE__);
+        return;
+    }
+    memset(t, 0, sizeof(t));
+    memcpy(t, block, (length_b + 7) / 8);
+    t[length_b / 8] |= 1 << (length_b & 7);
+    inject_block(a, t);
 }
 
 static void replace_block(
@@ -356,24 +415,10 @@ static void replace_block(
 	}
 }
 
-static void extract_block(
-        void *block,
-        state_t a)
-{
-	int i;
-	for (i = 0; i < 4; ++i) {
-		store_word_little(&((word_t *)block)[i], a[0][i]);
-	}
-	for (; i < 8; ++i) {
-		store_word_little(&((word_t *)block)[i], a[2][i - 4]);
-	}
-}
-
-
-static void inject_last_block(
+static void replace_last_block(
         state_t a,
         const void *block,
-        uint16_t length_b )
+        uint16_t length_b  )
 {
     uint8_t t[PI_RATE_BYTES];
     if (length_b >= PI_RATE_BITS) {
@@ -381,11 +426,16 @@ static void inject_last_block(
     	printf("ERROR <%s %s %d>\n", __FILE__, __func__, __LINE__);
         return;
     }
-    memset(t, 0, sizeof(t));
-    memcpy(t, block, (length_b + 7) / 8);
-    t[length_b / 8] |= 1 << (length_b & 7);
-    inject_block(a, t);
+    extract_block(t, a);
+    memset(t, 0, length_b / 8);
+    if (length_b % 8 != 0) {
+    	t[length_b / 8] &= 0xff << (length_b % 8);
+    }
+    memxor(t, block, (length_b + 7) / 8);
+//    t[length_b / 8] ^= 1 << (length_b % 8);
+    replace_block(a, t);
 }
+
 
 int8_t PI_INIT(
         PI_CTX *ctx,
@@ -457,24 +507,8 @@ void PI_PROCESS_AD_LAST_BLOCK(
     ctr_trans(ctx, a, ad_num);
     inject_last_block(a, ad, ad_length_b);
     pi((word_t*)a);
-    {
-        int q;
-        printf("tempTag: ");
-        for (q = 0; q < sizeof(ctx->tag) / sizeof(ctx->tag[0]); q++) {
-            printf("%"PRI_xw" ", ctx->tag[q]);
-        }
-        printf("\n");
-    }
     add_tag(ctx, a);
     ctx->ctr += ad_num;
-    {
-        int q;
-        printf("tempTag: ");
-        for (q = 0; q < sizeof(ctx->tag) / sizeof(ctx->tag[0]); q++) {
-            printf("%"PRI_xw" ", ctx->tag[q]);
-        }
-        printf("\n");
-    }
     inject_tag(ctx->cis, ctx->tag);
     pi((word_t*)ctx->cis);
 }
@@ -490,6 +524,22 @@ void PI_PROCESS_SMN(
     if (c0) {
         extract_block(c0, ctx->cis);
     }
+    pi((word_t*)ctx->cis);
+    add_tag(ctx, ctx->cis);
+}
+
+void PI_DECRYPT_SMN(
+        PI_CTX *ctx,
+        void *smn,
+        const void *c0)
+{
+    ctx->ctr++;
+    ctr_trans(ctx, ctx->cis, 0);
+    inject_block(ctx->cis, c0);
+    if (smn) {
+        extract_block(smn, ctx->cis);
+    }
+    replace_block(ctx->cis, c0);
     pi((word_t*)ctx->cis);
     add_tag(ctx, ctx->cis);
 }
@@ -573,15 +623,18 @@ void PI_DECRYPT_LAST_BLOCK(
         PI_CTX *ctx,
         void *dest,
         const void *src,
-        uint16_t *length_b,
+        uint16_t length_B,
         uint16_t num )
 {
-    PI_DECRYPT_BLOCK(ctx, dest, src, num);
-    *length_b = PI_CT_BLOCK_LENGTH_BITS;
-    while (*length_b > 0 && GET_BIT(dest, *length_b) == 0)
-    {
-        --length_b;
+    state_t a;
+    ctr_trans(ctx, a, num);
+    inject_last_block(a, src, length_B);
+    if (dest) {
+        extract_block(dest, a);
     }
+    replace_last_block(a, src, length_B);
+    pi((word_t*)a);
+    add_tag(ctx, a);
 }
 
 void PI_ENCRYPT_SIMPLE(
@@ -608,17 +661,12 @@ void PI_ENCRYPT_SIMPLE(
         return;
     }
     i = 1;
-    dump_state((word_t*)ctx.cis);
-    dump = 0;
     while (ad_len_B > PI_AD_BLOCK_LENGTH_BYTES) {
         PI_PROCESS_AD_BLOCK(&ctx, ad, i++);
         ad_len_B -= PI_AD_BLOCK_LENGTH_BYTES;
         ad = &((const uint8_t*)ad)[PI_AD_BLOCK_LENGTH_BYTES];
     }
     PI_PROCESS_AD_LAST_BLOCK(&ctx, ad, ad_len_B * 8, i);
-    dump = 1;
-    dump_state((word_t*)ctx.cis);
-    dump = 0;
     *cipher_len_B = 0;
     if (nonce_secret) {
         PI_PROCESS_SMN(&ctx, cipher, nonce_secret);
@@ -639,3 +687,61 @@ void PI_ENCRYPT_SIMPLE(
     *tag_length_B = PI_TAG_BYTES;
 }
 
+int PI_DECRYPT_SIMPLE(
+        void *msg,
+        uint16_t *msg_len_B,
+		void *nonce_secret,
+		const void *cipher,
+        uint16_t cipher_len_B,
+        const void *ad,
+        uint16_t ad_len_B,
+        const void *nonce_public,
+        uint16_t nonce_public_len_B,
+        const void *key,
+        uint16_t key_len_B
+        )
+{
+    unsigned i;
+    PI_CTX ctx;
+    uint8_t tmp_tag[PI_TAG_BYTES];
+    dump = 0;
+    if (nonce_secret && (cipher_len_B < PI_CT_BLOCK_LENGTH_BYTES + PI_TAG_BYTES)) {
+    	return -3;
+    }
+    if (PI_INIT(&ctx, key, key_len_B * 8, nonce_public, nonce_public_len_B * 8)) {
+        printf("ERROR! <%s %s %d>\n", __FILE__, __func__, __LINE__);
+        return -2;
+    }
+    i = 1;
+    while (ad_len_B > PI_AD_BLOCK_LENGTH_BYTES) {
+        PI_PROCESS_AD_BLOCK(&ctx, ad, i++);
+        ad_len_B -= PI_AD_BLOCK_LENGTH_BYTES;
+        ad = &((const uint8_t*)ad)[PI_AD_BLOCK_LENGTH_BYTES];
+    }
+    PI_PROCESS_AD_LAST_BLOCK(&ctx, ad, ad_len_B * 8, i);
+    *msg_len_B = 0;
+    if (nonce_secret) {
+        PI_DECRYPT_SMN(&ctx, nonce_secret, cipher);
+        cipher_len_B -= PI_CT_BLOCK_LENGTH_BYTES;
+		cipher = &((uint8_t*)cipher)[PI_CT_BLOCK_LENGTH_BYTES];
+    }
+    i = 1;
+    while (cipher_len_B - PI_TAG_BYTES > PI_PT_BLOCK_LENGTH_BYTES) {
+        PI_DECRYPT_BLOCK(&ctx, msg, cipher, i++);
+        msg = &((uint8_t*)msg)[PI_PT_BLOCK_LENGTH_BYTES];
+        cipher = &((uint8_t*)cipher)[PI_CT_BLOCK_LENGTH_BYTES];
+        cipher_len_B -= PI_CT_BLOCK_LENGTH_BYTES;
+        *msg_len_B += PI_PT_BLOCK_LENGTH_BYTES;
+    }
+    PI_DECRYPT_LAST_BLOCK(&ctx, msg, cipher, (cipher_len_B - PI_TAG_BYTES) * 8, i);
+    *msg_len_B += cipher_len_B - PI_TAG_BYTES;
+    cipher = &((uint8_t*)cipher)[cipher_len_B - PI_TAG_BYTES];
+    PI_EXTRACT_TAG(&ctx, tmp_tag);
+    if (memcmp(tmp_tag, cipher, PI_TAG_BYTES)) {
+    	printf("\n INVALID TAG:\n");
+    	printf("\tshould: "); hexdump_block(cipher, PI_TAG_BYTES, 4, 16); puts("");
+    	printf("\tis:     "); hexdump_block(tmp_tag, PI_TAG_BYTES, 4, 16); puts("");
+    	return -1;
+    }
+    return 0;
+}

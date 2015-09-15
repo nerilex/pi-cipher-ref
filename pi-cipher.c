@@ -434,16 +434,17 @@ static void replace_last_block(
         return;
     }
     extract_block(t, a);
-    memset(t, 0, length_b / 8);
+    memcpy(t, block, length_b / 8);
     if (length_b % 8 != 0) {
     	t[length_b / 8] &= 0xff << (length_b % 8);
+	t[length_b / 8] |= ((uint8_t *)block)[length_b / 8];
     }
-    memxor(t, block, (length_b + 7) / 8);
+//    t[length_b / 8] ^= 1 << (length_b % 8);
     replace_block(a, t);
 }
 
 
-int8_t PI_INIT(
+int PI_INIT(
         PI_CTX *ctx,
         const void *key,
         size_t key_length_b,
@@ -704,8 +705,8 @@ int PI_DECRYPT_SIMPLE(
     unsigned i;
     PI_CTX ctx;
 
-    dbg_l = ad_len_B;
-    dbg_x = ad;
+    unsigned long clen = cipher_len_B, alen = ad_len_B;
+
 
     uint8_t tmp_tag[PI_TAG_BYTES];
     if (nonce_secret && (cipher_len_B < PI_CT_BLOCK_LENGTH_BYTES + PI_TAG_BYTES)) {
@@ -718,20 +719,18 @@ int PI_DECRYPT_SIMPLE(
     i = 1;
     while (ad_len_B > PI_AD_BLOCK_LENGTH_BYTES) {
         PI_PROCESS_AD_BLOCK(&ctx, ad, i++);
-        printf("DBG: AD: "); hexdump_block(ad, PI_AD_BLOCK_LENGTH_BYTES, 4, 16); puts("");
         ad_len_B -= PI_AD_BLOCK_LENGTH_BYTES;
         ad = &((const uint8_t*)ad)[PI_AD_BLOCK_LENGTH_BYTES];
     }
     PI_PROCESS_AD_LAST_BLOCK(&ctx, ad, ad_len_B * 8, i);
-
     *msg_len_B = 0;
     if (nonce_secret) {
         PI_DECRYPT_SMN(&ctx, nonce_secret, cipher);
         cipher_len_B -= PI_CT_BLOCK_LENGTH_BYTES;
-		cipher = &((uint8_t*)cipher)[PI_CT_BLOCK_LENGTH_BYTES];
+	cipher = &((uint8_t*)cipher)[PI_CT_BLOCK_LENGTH_BYTES];
     }
     i = 1;
-    while (cipher_len_B - PI_TAG_BYTES > PI_PT_BLOCK_LENGTH_BYTES) {
+    while (cipher_len_B - PI_TAG_BYTES >= PI_PT_BLOCK_LENGTH_BYTES) {
         PI_DECRYPT_BLOCK(&ctx, msg, cipher, i++);
         msg = &((uint8_t*)msg)[PI_PT_BLOCK_LENGTH_BYTES];
         cipher = &((uint8_t*)cipher)[PI_CT_BLOCK_LENGTH_BYTES];
@@ -743,6 +742,7 @@ int PI_DECRYPT_SIMPLE(
     cipher = &((uint8_t*)cipher)[cipher_len_B - PI_TAG_BYTES];
     PI_EXTRACT_TAG(&ctx, tmp_tag);
     if (memcmp(tmp_tag, cipher, PI_TAG_BYTES)) {
+	printf("DBG: verification failed: clen = %lu; alen = %lu\n", alen, clen);
     	return -1;
     }
     return 0;

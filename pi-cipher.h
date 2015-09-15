@@ -39,12 +39,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define SUPERCOP 0
-
 /* please define PI_SIZE acoording to the primitive to implement (pi16cipher, pi32cipher or pi64cipher) */
 /* # define PI_SIZE 16 */
 
-#if SUPERCOP
+#ifdef SUPERCOP
+#include "ecrypt-portable.h"
 typedef u8 uint8_t;
 typedef u16 uint16_t;
 typedef u32 uint32_t;
@@ -128,7 +127,7 @@ typedef struct {
     uint64_t ctr;
 } PI_CTX;
 
-int8_t PI_INIT(
+int PI_INIT(
         PI_CTX *ctx,
         const void *key,
         size_t key_length_b,

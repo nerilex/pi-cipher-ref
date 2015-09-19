@@ -1,7 +1,3 @@
-// Lightly optimized non-SSE version of the algorithm
-// It uses precomputed values for the round constants;
-// Reuses values of mu(IS) in the rounds
-//
 // 64-bit version of Pi64Cipher256
 // implementation of the algorithm with 64-bit registers and security of 256-bits
 // bitrate is 512-bits, capacity is 512-bits -> state of the permutation function is 1024 bits long
@@ -22,206 +18,95 @@ typedef unsigned short        u_int16_t;
 typedef unsigned int          u_int32_t;
 typedef unsigned long long    u_int64_t;
 
-#define RATE 64       // Rate of the Internal State in Bytes 
-#define W 8	      // Length of the bynary words in bits
+#define RATE 64       // Rate of the Internal State in Bytes
+#define W 8			  // Length of the bynary words in bits
 #define N 4           // Number of chunks of the Internal State
 #define WORDS_CHUNK 4 // Number of w-bit words in one chunk
 #define IS_SIZE (N*4) // Size of the Internal State
-#define R 4			  // Tweakable parameter R, that represents the number of rounds in pi-function
+#define R 3 		  // Tweakable parameter R, that represents the number of rounds in pi-function
 #define bSMN CRYPTO_NSECBYTES/W // Offset for storing ciphertext after encrypted SMN
 
 // **ATTENTION** word_size is in a corellation with data type of InternalState (u_int64_t)
 u_int64_t IS[ IS_SIZE ];
-u_int64_t preCompIS[ IS_SIZE ];
 
-// initialization of the constants, used for the rounds  
-const u_int64_t Constant[] = { 
-  0x271E1D1B170FF0E8, 0xE4E2E1D8D4D2D1CC, 0xCAC9C6C5C3B8B4B2, 0xB1ACAAA9A6A5A39C, 0x9A999695938E8D8B, 0x87787472716C6A69, 0x6665635C5A595655, 0x534E4D4B473C3A39, 
-  0x3635332E2D2B271E, 0x1D1B170FF0E8E4E2, 0xE1D8D4D2D1CCCAC9, 0xC6C5C3B8B4B2B1AC, 0xAAA9A6A5A39C9A99, 0x9695938E8D8B8778, 0x7472716C6A696665, 0x635C5A595655534E, 
-  0x4D4B473C3A393635, 0x332E2D2B271E1D1B, 0x170FF0E8E4E2E1D8, 0xD4D2D1CCCAC9C6C5, 0xC3B8B4B2B1ACAAA9, 0xA6A5A39C9A999695, 0x938E8D8B87787472, 0x716C6A696665635C, 
-  0x5A595655534E4D4B, 0x473C3A393635332E, 0x2D2B271E1D1B170F, 0xF0E8E4E2E1D8D4D2, 0xD1CCCAC9C6C5C3B8, 0xB4B2B1ACAAA9A6A5, 0xA39C9A999695938E, 0x8D8B87787472716C 
-};
-
-// precalculated values for the * operation when the constants are used.
-// For the left constants of the rounds are calculated mu(C) and for the right constants nu(C)
-const u_int64_t preCompConst[] = {
-  0xcfef1a845658df67, 0xece473d44641c7ab, 0x8031a321405d631f, 0xfade2718aa3f04af, 0xe93553e53236d66a, 0x90fbd1832e1f33a1, 0xbcb24e125fd2cf31, 0xea3c32ddc5b1d39e,
-  0x53a81f4591532d3b, 0xe02f10909e31ac36, 0x7583c3b10445de1b, 0xba86f63dd3b74c9e, 0x91b7835a5766e62b, 0x52a04ed1fb274049, 0x95e16bddb994fb76, 0xd88e3bca2c9e7bbf,
-  0x9612db13a8a06987, 0xf48d4c19111d9843, 0xe570003c57d4c90c, 0x5bba8e9eb0390c80, 0xf2fa6ba9b962eeaa, 0xf02e82d200f6f11b, 0x2a64f6bcd6bad13f, 0x23eb74f131d33a95,
-  0x86b6cb48e9d478d3, 0xab62393c653d0504, 0x2c0d636444f25f8d, 0xf91ab5b0b75f5088, 0x1a760223d2cde990, 0x0bd827132f353f09, 0xb3dc04e1dd3056de, 0xbba681c0f3d59d53
-
+// initialization of the constants, used for the rounds
+const u_int64_t Constant[] = {
+  0x271E1D1B170FF0E8, 0xE4E2E1D8D4D2D1CC, 0xCAC9C6C5C3B8B4B2, 0xB1ACAAA9A6A5A39C, 0x9A999695938E8D8B, 0x87787472716C6A69, 0x6665635C5A595655, 0x534E4D4B473C3A39,
+  0x3635332E2D2B271E, 0x1D1B170FF0E8E4E2, 0xE1D8D4D2D1CCCAC9, 0xC6C5C3B8B4B2B1AC, 0xAAA9A6A5A39C9A99, 0x9695938E8D8B8778, 0x7472716C6A696665, 0x635C5A595655534E,
+  0x4D4B473C3A393635, 0x332E2D2B271E1D1B, 0x170FF0E8E4E2E1D8, 0xD4D2D1CCCAC9C6C5, 0xC3B8B4B2B1ACAAA9, 0xA6A5A39C9A999695, 0x938E8D8B87787472, 0x716C6A696665635C,
+  0x5A595655534E4D4B, 0x473C3A393635332E, 0x2D2B271E1D1B170F, 0xF0E8E4E2E1D8D4D2, 0xD1CCCAC9C6C5C3B8, 0xB4B2B1ACAAA9A6A5, 0xA39C9A999695938E, 0x8D8B87787472716C
 };
 
 // macro for left rotation
 #define rotl64(x,n)   (((x) << n) | ((x) >> (64 - n)))
 
-// macro for * operation
-// definition of the mu-transformation
-#define mu64(x0, x1, x2, x3, t4, t5, t6, t7)\
+// macro for ARX-operation
+#define ARX64(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3)\
 {\
-	t10 = x0; t11 = x1; t12 = x2; t13 = x3; \
-	t8 = (t10  + t11); \
-	t9 = (t12  + t13); \
-	t0 = (0xF0E8E4E2E1D8D4D2 + t8 +  t12); \
+	/*mu-transformation*/\
+	t0 = (0xF0E8E4E2E1D8D4D2 + x0  + x1 +  x2); \
 	t0 = rotl64((t0), 7);\
-	t1 = (0xD1CCCAC9C6C5C3B8 + t8 +  t13); \
+	t1 = (0xD1CCCAC9C6C5C3B8 + x0  + x1 +  x3); \
 	t1 = rotl64((t1), 19); \
-	t2 = (0xB4B2B1ACAAA9A6A5 + t10 +  t9); \
+	t2 = (0xB4B2B1ACAAA9A6A5 + x0 +  x2  + x3); \
 	t2 = rotl64((t2), 31); \
-	t3 = (0xA39C9A999695938E + t11 +  t9); \
+	t3 = (0xA39C9A999695938E + x1 +  x2  + x3); \
 	t3 = rotl64((t3), 53); \
+	\
+    t4 = t0 ^ t1 ^ t3;\
+    t5 = t0 ^ t1 ^ t2;\
+    t6 = t1 ^ t2 ^ t3;\
+    t7 = t0 ^ t2 ^ t3;\
 \
-	t8 = t0 ^ t1;\
-	t9 = t2 ^ t3;\
-\
-    t4 = t8 ^ t3;\
-    t5 = t8 ^ t2;\
-    t6 = t1 ^ t9;\
-    t7 = t0 ^ t9;\
-}
-
-// definition of the nu-transformation
-#define nu64(y0, y1, y2, y3, t8, t9, t10, t11)\
-{\
-    t4 = y0; t5 = y1; t6 = y2; t7 = y3; \
-    t8 = (t6  + t7);\
-    t9 = (t4  + t5);\
-    t0 = (0x8D8B87787472716C + t4 +  t8);\
+	/*nu-transformation*/\
+    t0 = (0x8D8B87787472716C + y0 +  y2  + y3);\
     t0 = rotl64((t0), 11);\
-    t1 = (0x6A696665635C5A59 + t5 +  t8);\
+    t1 = (0x6A696665635C5A59 + y1 +  y2  + y3);\
     t1 = rotl64((t1), 23);\
-    t2 = (0x5655534E4D4B473C + t9 +  t6);\
-	t2 = rotl64((t2), 37);\
-    t3 = (0x3A393635332E2D2B + t9 +  t7);\
+    t2 = (0x5655534E4D4B473C + y0  + y1 +  y2);\
+    t2 = rotl64((t2), 37);\
+    t3 = (0x3A393635332E2D2B + y0  + y1 +  y3);\
     t3 = rotl64((t3), 59);\
+	\
+    t8  = t1 ^ t2  ^ t3; \
+    t9  = t0 ^ t2  ^ t3; \
+    t10 = t0  ^ t1 ^ t3; \
+    t11 = t0  ^ t1 ^ t2; \
 \
-    t12 = t2  ^ t3; \
-    t13 = t0  ^ t1; \
-\
-    t8  = t12 ^ t1; \
-    t9  = t12 ^ t0; \
-    t10 = t3 ^ t13; \
-    t11 = t2 ^ t13; \
-}
-
-// definition of the sigma-transformation
-#define sigma64(t4, t5, t6, t7, t8, t9, t10, t11, z0, z1, z2, z3) \
-{ \
-	t0 = t4; \
-	t1 = t8; \
-	z0 = (t5 + t9);  \
+/*sigma-transformation*/\
+	z3 = (t4 +  t8); \
+	z0 = (t5 +  t9); \
 	z1 = (t6 + t10); \
 	z2 = (t7 + t11); \
-	z3 = (t0 + t1);  \
+}
+
+// one round of the pi-function
+#define Round(RoundNumber) \
+{ \
+	ARX64(Constant[8*RoundNumber], Constant[8*RoundNumber+1], Constant[8*RoundNumber+2], Constant[8*RoundNumber+3], \
+		  IS[0], IS[1], IS[2], IS[3], \
+		  IS[0], IS[1], IS[2], IS[3]); \
+	for ( i = 0; i < N - 1; i++ ) { \
+			ARX64(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
+			      IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3], \
+			      IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
+	} \
+	\
+	ARX64(IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3], \
+		  Constant[8*RoundNumber+4], Constant[8*RoundNumber+5], Constant[8*RoundNumber+6], Constant[8*RoundNumber+7],\
+		  IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3]); \
+	for ( i = N - 1; i >= 1; i-- ) { \
+			ARX64(IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3], \
+			      IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
+		          IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3]); \
+	} \
 }
 
 // The pi-function
 #define pi() \
 { \
-/* 1st round */ \
-       nu64(IS[0], IS[1], IS[2], IS[3], \
-	        IS[0], IS[1], IS[2], IS[3]);\
-	sigma64(preCompConst[0], preCompConst[1], preCompConst[2], preCompConst[3], \
-			IS[0], IS[1], IS[2], IS[3], \
-		    IS[0], IS[1], IS[2], IS[3]); \
-	for ( i = 0; i < N-1; i++ ) { \
-			  mu64(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]);\
-			  nu64(IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3], \
-				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
-		   sigma64(preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3], \
-				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
-	} \
-	\
-		mu64(IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3], \
-			 preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3]); \
-	sigma64(preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3], \
-			preCompConst[4], preCompConst[5], preCompConst[6], preCompConst[7], \
-			IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3]); \
-	for ( i = N-1; i >= 1; i-- ) { \
-			  nu64(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-			       preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]); \
-		   sigma64(preCompIS[4*(i-1)], preCompIS[4*(i-1)+1], preCompIS[4*(i-1)+2], preCompIS[4*(i-1)+3], \
-			   	   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3]); \
-	} \
-/* 2nd round */ \
-		nu64(IS[0], IS[1], IS[2], IS[3], \
-	         preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3]);\
-	 sigma64(preCompConst[8], preCompConst[9], preCompConst[10], preCompConst[11], \
-			preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3], \
-		    IS[0], IS[1], IS[2], IS[3]); \
-	for ( i = 0; i < N-1; i++ ) { \
-			  mu64(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]);\
-		   sigma64(preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   preCompIS[4*(i+1)], preCompIS[4*(i+1)+1], preCompIS[4*(i+1)+2], preCompIS[4*(i+1)+3], \
-				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
-	} \
-	\
-	   mu64(IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3], \
-		    preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3]); \
-	sigma64(preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3], \
-		    preCompConst[12], preCompConst[13], preCompConst[14], preCompConst[15], \
-		    IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3]); \
-	for ( i = N-1; i >= 1; i-- ) { \
-			  nu64(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]); \
-		   sigma64(preCompIS[4*(i-1)], preCompIS[4*(i-1)+1], preCompIS[4*(i-1)+2], preCompIS[4*(i-1)+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3]); \
-	} \
-/* 3rd round */ \
-		nu64(IS[0], IS[1], IS[2], IS[3], \
-	         preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3]);\
-	sigma64(preCompConst[16], preCompConst[17], preCompConst[18], preCompConst[19], \
-			preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3], \
-		    IS[0], IS[1], IS[2], IS[3]); \
-	for ( i = 0; i < N-1; i++ ) { \
-			  mu64(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]);\
-		   sigma64(preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   preCompIS[4*(i+1)], preCompIS[4*(i+1)+1], preCompIS[4*(i+1)+2], preCompIS[4*(i+1)+3], \
-				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
-	} \
-	\
-	   mu64(IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3], \
-		    preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3]); \
-	sigma64(preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3], \
-		    preCompConst[20], preCompConst[21], preCompConst[22], preCompConst[23], \
-		    IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3]); \
-	for ( i = N-1; i >= 1; i-- ) { \
-			  nu64(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]); \
-		   sigma64(preCompIS[4*(i-1)], preCompIS[4*(i-1)+1], preCompIS[4*(i-1)+2], preCompIS[4*(i-1)+3], \
-			       preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-			       IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3]); \
-	} \
-/* 4th round */ \
-		nu64(IS[0], IS[1], IS[2], IS[3], \
-	         preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3]);\
-	sigma64(preCompConst[24], preCompConst[25], preCompConst[26], preCompConst[27], \
-			   preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3], \
-		       IS[0], IS[1], IS[2], IS[3]); \
-	for ( i = 0; i < N-1; i++ ) { \
-			  mu64(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]);\
-		   sigma64(preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   preCompIS[4*(i+1)], preCompIS[4*(i+1)+1], preCompIS[4*(i+1)+2], preCompIS[4*(i+1)+3], \
-				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
-	}\
-	   mu64(IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3], \
-		    preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3]); \
-	sigma64(preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3], \
-		    preCompConst[28], preCompConst[29], preCompConst[30], preCompConst[31], \
-		    IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3]); \
-	for ( i = N-1; i >= 1; i-- ) { \
-			  nu64(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]); \
-		   sigma64(preCompIS[4*(i-1)], preCompIS[4*(i-1)+1], preCompIS[4*(i-1)+2], preCompIS[4*(i-1)+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3]); \
+	for (ii = 0; ii < R; ii++) { \
+		Round(ii); \
 	} \
 }
 

@@ -1,8 +1,4 @@
-// Lightly optimized non-SSE version of the algorithm
-// It uses precomputed values for the round constants;
-// Reuses values of mu(IS) in the rounds
-//
-// 16-bit version of Pi16Cipher96
+// 16-bit version of Pi16Cipher096
 // implementation of the algorithm with 16-bit registers and security of 96-bits
 // bitrate is 128-bits, capacity is 128-bits -> state of the permutation function is 256 bits long
 // key is 96 bits, PMN is 32 bits, SMN is 128 bits and the tag is 128 bits
@@ -27,200 +23,90 @@ typedef unsigned long long    u_int64_t;
 #define N 4           // Number of chunks of the Internal State
 #define WORDS_CHUNK 4 // Number of w-bit words in one chunk
 #define IS_SIZE (N*4) // Size of the Internal State
-#define R 4 		  // Tweakable parameter R, that represents the number of rounds in pi-function
+#define R 3 	      // Tweakable parameter R, that represents the number of rounds in pi-function
 #define bSMN CRYPTO_NSECBYTES/W // Offset for storing ciphertext after encrypted SMN
 
 // **ATTENTION** word_size is in a corellation with data type of InternalState (u_int16_t)
 u_int16_t IS[ IS_SIZE ];
-u_int64_t preCompIS[ IS_SIZE ];
 
 // initialization of the constants, used for the rounds
 const u_int16_t Constant[] = {
   0xB4B2, 0xB1AC, 0xAAA9, 0xA6A5, 0xA39C, 0x9A99, 0x9695, 0x938E,
   0x8D8B, 0x8778, 0x7472, 0x716C, 0x6A69, 0x6665, 0x635C, 0x5A59,
   0x5655, 0x534E, 0x4D4B, 0x473C, 0x3A39, 0x3635, 0x332E, 0x2D2B,
-  0x271E, 0x1D1B, 0x170F, 0xF0E8, 0xE4E2, 0xE1D8, 0xD4D2, 0xD1CC
-};
-
-// precalculated values for the * operation when the constants are used.
-// For the left constants of the rounds are calculated mu(C) and for the right constants nu(C)
-const u_int16_t preCompConst[] = {
-  0x7b3f, 0xac4e, 0xc92e, 0xd4af, 0x45d3, 0xcb4c, 0xfc30, 0x4952,
-  0x03bd, 0xc306, 0x75ad, 0x3401, 0x565b, 0x6d8d, 0xc60d, 0x4c2b,
-  0xae55, 0xfa29, 0x0861, 0x9bd1, 0x3673, 0xade6, 0xb7bf, 0xab20,
-  0x1f9e, 0xe270, 0x5ddf, 0x658e, 0x84dc, 0x9607, 0xd95c, 0x3a6a
+  0x271E, 0x1D1B, 0x170F, 0xF0E8, 0xE4E2, 0xE1D8, 0xD4D2, 0xD1CC,
 };
 
 // macro for left rotation
 #define rotl16(x,n)   (((x) << n) | ((x) >> (16 - n)))
 
-// macro for * operation
-// definition of the mu-transformation
-#define mu16(x0, x1, x2, x3, t4, t5, t6, t7)\
+// macro for ARX-operation
+#define ARX16(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3) \
 {\
-	t10 = x0; t11 = x1; t12 = x2; t13 = x3; \
-	t8 = (t10  + t11); \
-	t9 = (t12  + t13); \
-	t0 = (0xF0E8 + t8 +  t12); \
-	t0 = rotl16((t0), 1);\
-	t1 = (0xE4E2 + t8 +  t13); \
+	/*mu-transformation*/ \
+	t0 = (0xF0E8 + x0  + x1 +  x2); \
+	t0 = rotl16((t0), 1); \
+	t1 = (0xE4E2 + x0  + x1 +  x3); \
 	t1 = rotl16((t1), 4); \
-	t2 = (0xE1D8 + t10 +  t9); \
+	t2 = (0xE1D8 + x0 +  x2  + x3); \
 	t2 = rotl16((t2), 9); \
-	t3 = (0xD4D2 + t11 +  t9); \
+	t3 = (0xD4D2 + x1 +  x2  + x3); \
 	t3 = rotl16((t3), 11); \
-\
-	t8 = t0 ^ t1;\
-	t9 = t2 ^ t3;\
-\
-    t4 = t8 ^ t3;\
-    t5 = t8 ^ t2;\
-    t6 = t1 ^ t9;\
-    t7 = t0 ^ t9;\
+	\
+   	t4 = t0 ^ t1 ^ t3; \
+   	t5 = t0 ^ t1 ^ t2; \
+  	t6 = t1 ^ t2 ^ t3; \
+   	t7 = t0 ^ t2 ^ t3; \
+	\
+	/*nu-transformation*/ \
+   	 t0 = (0xD1CC + y0 +  y2  + y3); \
+   	 t0 = rotl16((t0), 2); \
+   	 t1 = (0xCAC9 + y1 +  y2  + y3); \
+   	 t1 = rotl16((t1), 5); \
+   	 t2 = (0xC6C5 + y0  + y1 +  y2); \
+	 t2 = rotl16((t2), 7); \
+   	 t3 = (0xC3B8 + y0  + y1 +  y3); \
+   	 t3 = rotl16((t3), 13); \
+	 \
+   	 t8  = t1 ^ t2  ^ t3; \
+   	 t9  = t0 ^ t2  ^ t3; \
+    	 t10 = t0  ^ t1 ^ t3; \
+    	 t11 = t0  ^ t1 ^ t2; \
+	 \
+	 /*sigma-transformation*/ \
+	 z3 = (t4 +  t8); \
+	 z0 = (t5 +  t9); \
+	 z1 = (t6 + t10); \
+	 z2 = (t7 + t11); \
 }
 
-// definition of the nu-transformation
-#define nu16(y0, y1, y2, y3, t8, t9, t10, t11)\
-{\
-    t4 = y0; t5 = y1; t6 = y2; t7 = y3; \
-    t8 = (t6  + t7);\
-    t9 = (t4  + t5);\
-    t0 = (0xD1CC + t4 +  t8);\
-    t0 = rotl16((t0), 2);\
-    t1 = (0xCAC9 + t5 +  t8);\
-    t1 = rotl16((t1), 5);\
-    t2 = (0xC6C5 + t9 +  t6);\
-    t2 = rotl16((t2), 7);\
-    t3 = (0xC3B8 + t9 +  t7);\
-    t3 = rotl16((t3), 13);\
-\
-    t12 = t2  ^ t3; \
-    t13 = t0  ^ t1; \
-\
-    t8  = t12 ^ t1; \
-    t9  = t12 ^ t0; \
-    t10 = t3 ^ t13; \
-    t11 = t2 ^ t13; \
-}
-
-// definition of the sigma-transformation
-#define sigma16(t4, t5, t6, t7, t8, t9, t10, t11, z0, z1, z2, z3) \
+// one round of the pi-function
+#define Round(RoundNumber) \
 { \
-	t0 = t4; \
-	t1 = t8; \
-	z0 = (t5 + t9);  \
-	z1 = (t6 + t10); \
-	z2 = (t7 + t11); \
-	z3 = (t0 + t1);  \
+	ARX16(Constant[8*RoundNumber], Constant[8*RoundNumber+1], Constant[8*RoundNumber+2], Constant[8*RoundNumber+3], \
+		  IS[0], IS[1], IS[2], IS[3], \
+		  IS[0], IS[1], IS[2], IS[3]); \
+	for ( i = 0; i < N - 1; i++ ) { \
+			ARX16(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
+			      IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3], \
+			      IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
+	} \
+	\
+	ARX16(IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3], \
+		  Constant[8*RoundNumber+4], Constant[8*RoundNumber+5], Constant[8*RoundNumber+6], Constant[8*RoundNumber+7],\
+		  IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3]); \
+	for ( i = N - 1; i >= 1; i-- ) { \
+			ARX16(IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3], \
+			      IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
+		          IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3]); \
+	} \
 }
 
 // The pi-function
 #define pi() \
 { \
-/* 1st round */ \
-       nu16(IS[0], IS[1], IS[2], IS[3], \
-	        IS[0], IS[1], IS[2], IS[3]);\
-	sigma16(preCompConst[0], preCompConst[1], preCompConst[2], preCompConst[3], \
-			IS[0], IS[1], IS[2], IS[3], \
-		    IS[0], IS[1], IS[2], IS[3]); \
-	for ( i = 0; i < N-1; i++ ) { \
-			  mu16(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]);\
-			  nu16(IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3], \
-				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
-		   sigma16(preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3], \
-				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
-	} \
-	\
-		mu16(IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3], \
-			 preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3]); \
-	sigma16(preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3], \
-			preCompConst[4], preCompConst[5], preCompConst[6], preCompConst[7], \
-			IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3]); \
-	for ( i = N-1; i >= 1; i-- ) { \
-			  nu16(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-			       preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]); \
-		   sigma16(preCompIS[4*(i-1)], preCompIS[4*(i-1)+1], preCompIS[4*(i-1)+2], preCompIS[4*(i-1)+3], \
-			   	   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3]); \
-	} \
-/* 2nd round */ \
-		nu16(IS[0], IS[1], IS[2], IS[3], \
-	         preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3]);\
-	 sigma16(preCompConst[8], preCompConst[9], preCompConst[10], preCompConst[11], \
-			preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3], \
-		    IS[0], IS[1], IS[2], IS[3]); \
-	for ( i = 0; i < N-1; i++ ) { \
-			  mu16(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]);\
-		   sigma16(preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   preCompIS[4*(i+1)], preCompIS[4*(i+1)+1], preCompIS[4*(i+1)+2], preCompIS[4*(i+1)+3], \
-				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
-	} \
-	\
-	   mu16(IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3], \
-		    preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3]); \
-	sigma16(preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3], \
-		    preCompConst[12], preCompConst[13], preCompConst[14], preCompConst[15], \
-		    IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3]); \
-	for ( i = N-1; i >= 1; i-- ) { \
-			  nu16(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]); \
-		   sigma16(preCompIS[4*(i-1)], preCompIS[4*(i-1)+1], preCompIS[4*(i-1)+2], preCompIS[4*(i-1)+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3]); \
-	} \
-/* 3rd round */ \
-		nu16(IS[0], IS[1], IS[2], IS[3], \
-	         preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3]);\
-	sigma16(preCompConst[16], preCompConst[17], preCompConst[18], preCompConst[19], \
-			preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3], \
-		    IS[0], IS[1], IS[2], IS[3]); \
-	for ( i = 0; i < N-1; i++ ) { \
-			  mu16(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]);\
-		   sigma16(preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   preCompIS[4*(i+1)], preCompIS[4*(i+1)+1], preCompIS[4*(i+1)+2], preCompIS[4*(i+1)+3], \
-				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
-	} \
-	\
-	   mu16(IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3], \
-		    preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3]); \
-	sigma16(preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3], \
-		    preCompConst[20], preCompConst[21], preCompConst[22], preCompConst[23], \
-		    IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3]); \
-	for ( i = N-1; i >= 1; i-- ) { \
-			  nu16(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]); \
-		   sigma16(preCompIS[4*(i-1)], preCompIS[4*(i-1)+1], preCompIS[4*(i-1)+2], preCompIS[4*(i-1)+3], \
-			       preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-			       IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3]); \
-	} \
-/* 4th round */ \
-		nu16(IS[0], IS[1], IS[2], IS[3], \
-	         preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3]);\
-	sigma16(preCompConst[24], preCompConst[25], preCompConst[26], preCompConst[27], \
-			   preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3], \
-		       IS[0], IS[1], IS[2], IS[3]); \
-	for ( i = 0; i < N-1; i++ ) { \
-			  mu16(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]);\
-		   sigma16(preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   preCompIS[4*(i+1)], preCompIS[4*(i+1)+1], preCompIS[4*(i+1)+2], preCompIS[4*(i+1)+3], \
-				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
-	}\
-	   mu16(IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3], \
-		    preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3]); \
-	sigma16(preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3], \
-		    preCompConst[28], preCompConst[29], preCompConst[30], preCompConst[31], \
-		    IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3]); \
-	for ( i = N-1; i >= 1; i-- ) { \
-			  nu16(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]); \
-		   sigma16(preCompIS[4*(i-1)], preCompIS[4*(i-1)+1], preCompIS[4*(i-1)+2], preCompIS[4*(i-1)+3], \
-				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
-				   IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3]); \
+	for (ii = 0; ii < R; ii++) { \
+		Round(ii); \
 	} \
 }
 
@@ -264,7 +150,7 @@ const unsigned char *k
  int        LastMessageChunkLength, LastADChunkLength;
  // different iterator variables
  unsigned long long i, j, jj, ii, b, i1, j1, a;
- 
+
  c16    = (u_int16_t *) c;
  m16    = (u_int16_t *) m;
  ad16   = (u_int16_t *) ad;

@@ -52,6 +52,9 @@ size_t dbg_l;
 const uint8_t *dbg_x;
 uint8_t dump;
 
+const char* pi_cipher_name = XSTR(PI_CIPHER_NAME);
+
+
 static
 void hexdump_block(
 		const void *data,
@@ -339,10 +342,19 @@ static void ctr_trans(
     }
     t = ctx->ctr + ctr;
     /* endianess ? FIXME */
+#if BUG
     for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
     	a[0][i] ^= t >> (64 - PI_WORD_SIZE);
     	t <<= PI_WORD_SIZE;
     }
+#else
+    for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
+    	a[0][i] ^= (word_t)t;
+#  if PI_WORD_SIZE < 64
+    	t >>= PI_WORD_SIZE;
+#  endif
+    }
+#endif
 
     pi((word_t*)a);
 }
@@ -456,11 +468,11 @@ int PI_INIT(
 	if ((key_length_b % 8 != 0) || (pmn_length_b % 8 != 0)) {
 		return -1;
 	}
-    if (key_length_b / 8 + pmn_length_b / 8 + 1 > PI_IS_BITS / 8) {
+    if (key_length_b / 8 + pmn_length_b / 8 + 1 >= PI_IS_BITS / 8) {
         return -1;
     }
     memset(ctx->tag, 0, sizeof(ctx->tag));
-    memset(setup_buf, 0, sizeof(ctx->cis));
+    memset(setup_buf, 0, sizeof(setup_buf));
     memcpy(setup_buf, key, key_length_b / 8);
     memcpy(&setup_buf[key_length_b / 8], pmn, pmn_length_b / 8);
     setup_buf[key_length_b / 8 + pmn_length_b / 8] = 1;
@@ -469,11 +481,17 @@ int PI_INIT(
     }
     pi((word_t*)ctx->cis);
     ctx->ctr = 0;
-    /* endianes ? FIXME - this is big endian */
+    /* endianes ? FIXME - bug is big endian style arranging of little endian words */
+#if BUG
     for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
     	ctx->ctr <<= PI_WORD_SIZE;
     	ctx->ctr |= (uint64_t)ctx->cis[1][i];
     }
+#else
+    for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
+		ctx->ctr |= (uint64_t)ctx->cis[1][i] << (i * PI_WORD_SIZE);
+	}
+#endif
     return 0;
 }
 
@@ -661,7 +679,7 @@ void PI_ENCRYPT_SIMPLE(
         return;
     }
     i = 1;
-    while (ad_len_B > PI_AD_BLOCK_LENGTH_BYTES) {
+    while (ad_len_B >= PI_AD_BLOCK_LENGTH_BYTES) {
         PI_PROCESS_AD_BLOCK(&ctx, ad, i++);
         ad_len_B -= PI_AD_BLOCK_LENGTH_BYTES;
         ad = &((const uint8_t*)ad)[PI_AD_BLOCK_LENGTH_BYTES];
@@ -674,7 +692,7 @@ void PI_ENCRYPT_SIMPLE(
         cipher = &((uint8_t*)cipher)[PI_CT_BLOCK_LENGTH_BYTES];
     }
     i = 1;
-    while (msg_len_B > PI_PT_BLOCK_LENGTH_BYTES) {
+    while (msg_len_B >= PI_PT_BLOCK_LENGTH_BYTES) {
         PI_ENCRYPT_BLOCK(&ctx, cipher, msg, i++);
         msg = &((const uint8_t*)msg)[PI_PT_BLOCK_LENGTH_BYTES];
         cipher = &((uint8_t*)cipher)[PI_CT_BLOCK_LENGTH_BYTES];
@@ -684,7 +702,9 @@ void PI_ENCRYPT_SIMPLE(
     PI_ENCRYPT_LAST_BLOCK(&ctx, cipher, msg, msg_len_B * 8, i);
     *cipher_len_B += msg_len_B;
     PI_EXTRACT_TAG(&ctx, tag);
-    *tag_length_B = PI_TAG_BYTES;
+    if (tag_length_B) {
+    	*tag_length_B = PI_TAG_BYTES;
+    }
 }
 
 int PI_DECRYPT_SIMPLE(
@@ -706,7 +726,9 @@ int PI_DECRYPT_SIMPLE(
     PI_CTX ctx;
 
     unsigned long clen = cipher_len_B, alen = ad_len_B;
-
+    uint8_t bck_c[clen], bck_ad[alen];
+    memcpy(bck_c, cipher, clen);
+    memcpy(bck_ad, ad, alen);
 
     uint8_t tmp_tag[PI_TAG_BYTES];
     if (nonce_secret && (cipher_len_B < PI_CT_BLOCK_LENGTH_BYTES + PI_TAG_BYTES)) {
@@ -717,7 +739,7 @@ int PI_DECRYPT_SIMPLE(
         return -2;
     }
     i = 1;
-    while (ad_len_B > PI_AD_BLOCK_LENGTH_BYTES) {
+    while (ad_len_B >= PI_AD_BLOCK_LENGTH_BYTES) {
         PI_PROCESS_AD_BLOCK(&ctx, ad, i++);
         ad_len_B -= PI_AD_BLOCK_LENGTH_BYTES;
         ad = &((const uint8_t*)ad)[PI_AD_BLOCK_LENGTH_BYTES];
@@ -742,7 +764,20 @@ int PI_DECRYPT_SIMPLE(
     cipher = &((uint8_t*)cipher)[cipher_len_B - PI_TAG_BYTES];
     PI_EXTRACT_TAG(&ctx, tmp_tag);
     if (memcmp(tmp_tag, cipher, PI_TAG_BYTES)) {
-	printf("DBG: verification failed: clen = %lu; alen = %lu\n", alen, clen);
+    	printf("DBG: verification failed: clen = %lu; alen = %lu\n", clen, alen);
+    	printf("Key:\n");
+    	hexdump_block(key, key_len_B, 4, 16);
+    	printf("\nNonce:\n");
+    	hexdump_block(nonce_public, nonce_public_len_B, 4, 16);
+    	printf("\nAD:\n");
+    	hexdump_block(bck_ad, alen, 4, 16);
+    	printf("\nCiphertext:\n");
+    	hexdump_block(bck_c, clen, 4, 16);
+    	printf("\nShould-Tag:\n");
+		hexdump_block(cipher, PI_TAG_BYTES, 4, 16);
+		printf("\nIS-Tag:\n");
+		hexdump_block(tmp_tag, PI_TAG_BYTES, 4, 16);
+		puts("");
     	return -1;
     }
     return 0;

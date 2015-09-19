@@ -1,4 +1,8 @@
-// Two rounds of Pi64Cipher256
+// Lightly optimized non-SSE version of the algorithm
+// It uses precomputed values for the round constants;
+// Reuses values of mu(IS) in the rounds
+//
+// 64-bit version of Pi64Cipher256
 // implementation of the algorithm with 64-bit registers and security of 256-bits
 // bitrate is 512-bits, capacity is 512-bits -> state of the permutation function is 1024 bits long
 // key is 256 bits, PMN is 128 bits, SMN is 512 bits and the tag is 512 bits
@@ -19,11 +23,11 @@ typedef unsigned int          u_int32_t;
 typedef unsigned long long    u_int64_t;
 
 #define RATE 64       // Rate of the Internal State in Bytes 
-#define W 8	      // Length of the bynary words in bytes
+#define W 8	      // Length of the bynary words in bits
 #define N 4           // Number of chunks of the Internal State
 #define WORDS_CHUNK 4 // Number of w-bit words in one chunk
 #define IS_SIZE (N*4) // Size of the Internal State
-#define R 2			  // Tweakable parameter R, that represents the number of rounds in pi-function
+#define R 3			  // Tweakable parameter R, that represents the number of rounds in pi-function
 #define bSMN CRYPTO_NSECBYTES/W // Offset for storing ciphertext after encrypted SMN
 
 // **ATTENTION** word_size is in a corellation with data type of InternalState (u_int64_t)
@@ -168,6 +172,57 @@ const u_int64_t preCompConst[] = {
 				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
 				   IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3]); \
 	} \
+/* 3rd round */ \
+		nu64(IS[0], IS[1], IS[2], IS[3], \
+	         preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3]);\
+	sigma64(preCompConst[16], preCompConst[17], preCompConst[18], preCompConst[19], \
+			preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3], \
+		    IS[0], IS[1], IS[2], IS[3]); \
+	for ( i = 0; i < N-1; i++ ) { \
+			  mu64(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
+				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]);\
+		   sigma64(preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
+				   preCompIS[4*(i+1)], preCompIS[4*(i+1)+1], preCompIS[4*(i+1)+2], preCompIS[4*(i+1)+3], \
+				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
+	} \
+	\
+	   mu64(IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3], \
+		    preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3]); \
+	sigma64(preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3], \
+		    preCompConst[20], preCompConst[21], preCompConst[22], preCompConst[23], \
+		    IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3]); \
+	for ( i = N-1; i >= 1; i-- ) { \
+			  nu64(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
+				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]); \
+		   sigma64(preCompIS[4*(i-1)], preCompIS[4*(i-1)+1], preCompIS[4*(i-1)+2], preCompIS[4*(i-1)+3], \
+			       preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
+			       IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3]); \
+	} \
+/* 4th round */ \
+		nu64(IS[0], IS[1], IS[2], IS[3], \
+	         preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3]);\
+	sigma64(preCompConst[24], preCompConst[25], preCompConst[26], preCompConst[27], \
+			   preCompIS[0], preCompIS[1], preCompIS[2], preCompIS[3], \
+		       IS[0], IS[1], IS[2], IS[3]); \
+	for ( i = 0; i < N-1; i++ ) { \
+			  mu64(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
+				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]);\
+		   sigma64(preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
+				   preCompIS[4*(i+1)], preCompIS[4*(i+1)+1], preCompIS[4*(i+1)+2], preCompIS[4*(i+1)+3], \
+				   IS[4*(i+1)], IS[4*(i+1)+1], IS[4*(i+1)+2], IS[4*(i+1)+3]); \
+	}\
+	   mu64(IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3], \
+		    preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3]); \
+	sigma64(preCompIS[4*(N-1)], preCompIS[4*(N-1)+1], preCompIS[4*(N-1)+2], preCompIS[4*(N-1)+3], \
+		    preCompConst[28], preCompConst[29], preCompConst[30], preCompConst[31], \
+		    IS[4*(N-1)], IS[4*(N-1)+1], IS[4*(N-1)+2], IS[4*(N-1)+3]); \
+	for ( i = N-1; i >= 1; i-- ) { \
+			  nu64(IS[4*i], IS[4*i+1], IS[4*i+2], IS[4*i+3], \
+				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3]); \
+		   sigma64(preCompIS[4*(i-1)], preCompIS[4*(i-1)+1], preCompIS[4*(i-1)+2], preCompIS[4*(i-1)+3], \
+				   preCompIS[4*i], preCompIS[4*i+1], preCompIS[4*i+2], preCompIS[4*i+3], \
+				   IS[4*(i-1)], IS[4*(i-1)+1], IS[4*(i-1)+2], IS[4*(i-1)+3]); \
+	} \
 }
 
 // Encrypton and authentication procedure
@@ -199,7 +254,7 @@ const unsigned char *k
  // counter ctr is a 64-bit variable in all variants of PiCipher
  u_int64_t  ctr = 0x0000000000000000ull;
  // an array for storing some temporal values for the Tag computation
- u_int64_t  tempTag[CRYPTO_ABYTES/W] = {0};
+ u_int64_t  tempTag[CRYPTO_TBYTES/W] = {0};
  // an array for the Common Internal State
  u_int64_t  CIS[IS_SIZE] = {0};
  // pointers that look at the used data arrays as arrays of bytes
@@ -407,12 +462,12 @@ const unsigned char *k
  }
 
  // concatenation of the tag T to the ciphertext c
- for ( jj = 0; jj < CRYPTO_ABYTES; jj++ ) {
+ for ( jj = 0; jj < CRYPTO_TBYTES; jj++ ) {
 	c[CRYPTO_NSECBYTES+mlen+jj] = tempTag8[jj];
  }
 
  //updating the lenght of the ciphertext
- *clen = mlen + CRYPTO_ABYTES + CRYPTO_NSECBYTES;
+ *clen = mlen + CRYPTO_TBYTES + CRYPTO_NSECBYTES;
 
   return 0;
 }
@@ -444,7 +499,7 @@ const unsigned char *k
  // pointers to 64-bit variables
  u_int64_t  *c64, *m64, *ad64, *nsec64, *npub64, *k64;
  // an array for storing some temporal values for the Tag computation
- u_int64_t  tempTag[CRYPTO_ABYTES/W] = {0};
+ u_int64_t  tempTag[CRYPTO_TBYTES/W] = {0};
  // counter ctr is a 64-bit variable in all variants of PiCipher
  u_int64_t  ctr = 0x0000000000000000ull;
  // an array for the Common Internal State
@@ -602,7 +657,7 @@ const unsigned char *k
 
  //phase 4: Processing the ciphertext
  b = 0;
- for ( j = 0; j < (clen-CRYPTO_ABYTES-CRYPTO_NSECBYTES)/RATE; j ++ ) {
+ for ( j = 0; j < (clen-CRYPTO_TBYTES-CRYPTO_NSECBYTES)/RATE; j ++ ) {
 	for ( i = 0; i < IS_SIZE; i++ ) {
 		IS[i] = CIS[i];
 	}
@@ -630,7 +685,7 @@ const unsigned char *k
 	}
  }
  // if the last ciphertext block is not the full block, we process it byte by byte
- LastMessageChunkLength = (clen-CRYPTO_ABYTES-CRYPTO_NSECBYTES) % RATE;
+ LastMessageChunkLength = (clen-CRYPTO_TBYTES-CRYPTO_NSECBYTES) % RATE;
  if ( LastMessageChunkLength ) {
 	 b = b * W;
 	 i1 = 0;
@@ -660,7 +715,7 @@ const unsigned char *k
  }
 
  //updating the lenght of the message
- *mlen = clen-CRYPTO_ABYTES-CRYPTO_NSECBYTES;
+ *mlen = clen-CRYPTO_TBYTES-CRYPTO_NSECBYTES;
 
  // tag verification
  for ( ii = (*mlen + CRYPTO_NSECBYTES); ii < clen; ii ++ ) {

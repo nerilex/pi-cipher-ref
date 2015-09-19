@@ -52,6 +52,9 @@ size_t dbg_l;
 const uint8_t *dbg_x;
 uint8_t dump;
 
+const char* pi_cipher_name = XSTR(PI_CIPHER_NAME);
+
+
 static
 void hexdump_block(
 		const void *data,
@@ -339,10 +342,19 @@ static void ctr_trans(
     }
     t = ctx->ctr + ctr;
     /* endianess ? FIXME */
+#if BUG
     for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
     	a[0][i] ^= t >> (64 - PI_WORD_SIZE);
     	t <<= PI_WORD_SIZE;
     }
+#else
+    for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
+    	a[0][i] ^= (word_t)t;
+#  if PI_WORD_SIZE < 64
+    	t >>= PI_WORD_SIZE;
+#  endif
+    }
+#endif
 
     pi((word_t*)a);
 }
@@ -469,11 +481,17 @@ int PI_INIT(
     }
     pi((word_t*)ctx->cis);
     ctx->ctr = 0;
-    /* endianes ? FIXME - this is big endian */
+    /* endianes ? FIXME - bug is big endian style arranging of little endian words */
+#if BUG
     for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
     	ctx->ctr <<= PI_WORD_SIZE;
     	ctx->ctr |= (uint64_t)ctx->cis[1][i];
     }
+#else
+    for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
+		ctx->ctr |= (uint64_t)ctx->cis[1][i] << (i * PI_WORD_SIZE);
+	}
+#endif
     return 0;
 }
 
@@ -684,7 +702,9 @@ void PI_ENCRYPT_SIMPLE(
     PI_ENCRYPT_LAST_BLOCK(&ctx, cipher, msg, msg_len_B * 8, i);
     *cipher_len_B += msg_len_B;
     PI_EXTRACT_TAG(&ctx, tag);
-    *tag_length_B = PI_TAG_BYTES;
+    if (tag_length_B) {
+    	*tag_length_B = PI_TAG_BYTES;
+    }
 }
 
 int PI_DECRYPT_SIMPLE(

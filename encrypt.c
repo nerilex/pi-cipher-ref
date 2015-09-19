@@ -51,7 +51,7 @@ int crypto_aead_encrypt(
 	PI_ENCRYPT_SIMPLE(
 			c,
 			&x,
-			&c[mlen + nsec ? PI_CT_BLOCK_LENGTH_BYTES : 0],
+			&c[mlen + (nsec ? PI_CT_BLOCK_LENGTH_BYTES : 0)],
 			&v,
 			m,
 			mlen,
@@ -107,8 +107,8 @@ int crypto_aead_decrypt(
 	r = PI_DECRYPT_SIMPLE(
 	        m,
 	        &ml,
-		nsec,
-		c,
+			nsec,
+			c,
 	        clen,
 	        ad,
 	        adlen,

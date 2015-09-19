@@ -40,7 +40,7 @@
 */
 
 /* please define PI_SIZE acoording to the primitive to implement (pi16cipher, pi32cipher or pi64cipher) */
-#define PI_SIZE 16
+/* # define PI_SIZE 16 */
 
 #ifdef SUPERCOP
 #include "ecrypt-portable.h"
@@ -91,6 +91,10 @@ typedef u64 uint64_t;
 #define PI_MU_V_CONST { 3, 2, 1, 0 }
 #define PI_NY_V_CONST { 1, 0, 3, 2 }
 
+
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 #define CTX_NAME(x)                     pi ## x ## _ctx_t
 #define INIT_NAME(x)                    pi ## x ## _init
 #define PROCESS_AD_BLOCK_NAME(x)        pi ## x ## _process_ad_block
@@ -104,6 +108,7 @@ typedef u64 uint64_t;
 #define DECRYPT_LAST_BLOCK_NAME(x)      pi ## x ## _decrypt_last_block
 #define ENCRYPT_SIMPLE_NAME(x)          pi ## x ## _encrypt_simple
 #define DECRYPT_SIMPLE_NAME(x)          pi ## x ## _decrypt_simple
+#define CIPHER_NAME(x)                  pi ## x ## cipher
 
 #define NAME(f,x) f(x)
 
@@ -120,6 +125,11 @@ typedef u64 uint64_t;
 #define PI_DECRYPT_LAST_BLOCK           NAME(DECRYPT_LAST_BLOCK_NAME, PI_WORD_SIZE)
 #define PI_ENCRYPT_SIMPLE               NAME(ENCRYPT_SIMPLE_NAME, PI_WORD_SIZE)
 #define PI_DECRYPT_SIMPLE               NAME(DECRYPT_SIMPLE_NAME, PI_WORD_SIZE)
+#define PI_CIPHER_NAME                  NAME(CIPHER_NAME, PI_WORD_SIZE)
+
+
+
+extern const char* pi_cipher_name;
 
 typedef struct {
     word_t cis[4][4];

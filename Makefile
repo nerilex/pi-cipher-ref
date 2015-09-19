@@ -1,17 +1,34 @@
 PI_SIZE = 16
 
+target = main_$(PI_SIZE)
+obj = pi$(PI_SIZE)-cipher.o
+size = size
 
-CFLAGS = "-DPI_SIZE=$(PI_SIZE)"
+ifdef CROSS
+  CC = $(CROSS)-gcc
+  target := $(target)_$(CROSS)
+  obj = pi$(PI_SIZE)-cipher_$(CROSS).o
+  size := $(CROSS)-size
+endif
 
-all: test
+OPT = -Os
+
+CFLAGS = "-DPI_SIZE=$(PI_SIZE)" $(OPT)
+
+all: test report
 
 clean:
-	rm -f main pi-cipher.o
+	rm -f $(target) $(obj)
 	
-test: main
+test: $(target)
 
-main: main.c pi-cipher.o pi$(PI_SIZE)cipher128v1/ref/*.c
+$(target): main.c $(obj)
 	$(CC) $(CFLAGS) -o $@ $^
 	
-pi-cipher.o: pi-cipher.c pi-cipher.h pi$(PI_SIZE)_parameter.h
+$(obj): pi-cipher.c pi-cipher.h pi$(PI_SIZE)_parameter.h
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+report: $(obj)
+	$(size) $^
+
+

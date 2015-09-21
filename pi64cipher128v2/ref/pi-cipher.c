@@ -24,24 +24,93 @@
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
-#define DEBUG 1
+#define DEBUG 0
 
 #if (PI_WORD_SIZE == 16)
 #  define load_word_little(mem) load_u16_little(mem)
 #  define store_word_little(mem, val) store_u16_little((mem), (val))
 #  define PRI_xw "04"PRIx16
+
+
+static uint16_t load_u16_little(const void *mem)
+{
+	uint16_t ret;
+	const uint8_t *x = (const uint8_t *)mem;
+	ret =   x[0] <<  0
+	      | x[1] <<  8;
+	return ret;
+}
+
+static void store_u16_little(void *mem, uint16_t val)
+{
+	uint8_t *x = (uint8_t *)mem;
+	x[0] = val & 0xff; val >>= 8;
+	x[1] = val & 0xff;
+}
+
 #elif (PI_WORD_SIZE == 32)
 #  define load_word_little(mem) load_u32_little(mem)
 #  define store_word_little(mem, val) store_u32_little((mem), (val))
 #  define PRI_xw "08"PRIx32
+
+static uint32_t load_u32_little(const void *mem)
+{
+	uint32_t ret;
+	const uint8_t *x = (const uint8_t *)mem;
+	ret =   (uint32_t)x[0] <<  0
+	      | (uint32_t)x[1] <<  8
+	      | (uint32_t)x[2] << 16
+	      | (uint32_t)x[3] << 24;
+	return ret;
+}
+
+static void store_u32_little(void *mem, uint32_t val)
+{
+	uint8_t *x = (uint8_t *)mem;
+	x[0] = val & 0xff; val >>= 8;
+	x[1] = val & 0xff; val >>= 8;
+	x[2] = val & 0xff; val >>= 8;
+	x[3] = val & 0xff;
+}
+
 #elif (PI_WORD_SIZE == 64)
 #  define load_word_little(mem) load_u64_little(mem)
 #  define store_word_little(mem, val) store_u64_little((mem), (val))
 #  define PRI_xw "016"PRIx64
+
+static uint64_t load_u64_little(const void *mem)
+{
+	uint64_t ret;
+	const uint8_t *x = (const uint8_t *)mem;
+	ret =   (uint64_t)x[0] <<  0
+	      | (uint64_t)x[1] <<  8
+	      | (uint64_t)x[2] << 16
+	      | (uint64_t)x[3] << 24
+	      | (uint64_t)x[4] << 32
+	      | (uint64_t)x[5] << 40
+	      | (uint64_t)x[6] << 48
+	      | (uint64_t)x[7] << 56;
+	return ret;
+}
+
+static void store_u64_little(void *mem, uint64_t val)
+{
+	uint8_t *x = (uint8_t *)mem;
+	x[0] = val & 0xff; val >>= 8;
+	x[1] = val & 0xff; val >>= 8;
+	x[2] = val & 0xff; val >>= 8;
+	x[3] = val & 0xff; val >>= 8;
+	x[4] = val & 0xff; val >>= 8;
+	x[5] = val & 0xff; val >>= 8;
+	x[6] = val & 0xff; val >>= 8;
+	x[7] = val & 0xff;
+}
+
 #endif
 
 
 typedef word_t state_t[4][4];
+const char* pi_cipher_name = XSTR(PI_CIPHER_NAME);
 
 
 #if DEBUG
@@ -51,8 +120,6 @@ typedef word_t state_t[4][4];
 size_t dbg_l;
 const uint8_t *dbg_x;
 uint8_t dump;
-
-const char* pi_cipher_name = XSTR(PI_CIPHER_NAME);
 
 
 static
@@ -99,82 +166,6 @@ static void dump_state(const word_t* a)
 #define printf(...)
 #endif
 
-static uint64_t load_u64_little(const void *mem)
-{
-	uint64_t ret;
-	const uint8_t *x = (const uint8_t *)mem;
-	ret =   (uint64_t)x[0] <<  0
-	      | (uint64_t)x[1] <<  8
-	      | (uint64_t)x[2] << 16
-	      | (uint64_t)x[3] << 24
-	      | (uint64_t)x[4] << 32
-	      | (uint64_t)x[5] << 40
-	      | (uint64_t)x[6] << 48
-	      | (uint64_t)x[7] << 56;
-	return ret;
-}
-
-static uint32_t load_u32_little(const void *mem)
-{
-	uint32_t ret;
-	const uint8_t *x = (const uint8_t *)mem;
-	ret =   (uint32_t)x[0] <<  0
-	      | (uint32_t)x[1] <<  8
-	      | (uint32_t)x[2] << 16
-	      | (uint32_t)x[3] << 24;
-	return ret;
-}
-
-static uint16_t load_u16_little(const void *mem)
-{
-	uint16_t ret;
-	const uint8_t *x = (const uint8_t *)mem;
-	ret =   x[0] <<  0
-	      | x[1] <<  8;
-	return ret;
-}
-
-static void store_u64_little(void *mem, uint64_t val)
-{
-	uint8_t *x = (uint8_t *)mem;
-	x[0] = val & 0xff; val >>= 8;
-	x[1] = val & 0xff; val >>= 8;
-	x[2] = val & 0xff; val >>= 8;
-	x[3] = val & 0xff; val >>= 8;
-	x[4] = val & 0xff; val >>= 8;
-	x[5] = val & 0xff; val >>= 8;
-	x[6] = val & 0xff; val >>= 8;
-	x[7] = val & 0xff;
-}
-
-static void store_u32_little(void *mem, uint32_t val)
-{
-	uint8_t *x = (uint8_t *)mem;
-	x[0] = val & 0xff; val >>= 8;
-	x[1] = val & 0xff; val >>= 8;
-	x[2] = val & 0xff; val >>= 8;
-	x[3] = val & 0xff;
-}
-
-static void store_u16_little(void *mem, uint16_t val)
-{
-	uint8_t *x = (uint8_t *)mem;
-	x[0] = val & 0xff; val >>= 8;
-	x[1] = val & 0xff;
-}
-
-static void memxor(
-		void *dest,
-		const void *src,
-		size_t length)
-{
-	char *d = (char *)dest;
-	const char *s = (const char *)src;
-	while(length--)
-	{
-		*d++ ^= *s++;
-	}
-}
 
 static word_t rotl(word_t x, uint8_t n)
 {
@@ -341,20 +332,12 @@ static void ctr_trans(
         memcpy(a, ctx->cis, sizeof(state_t));
     }
     t = ctx->ctr + ctr;
-    /* endianess ? FIXME */
-#if BUG
-    for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
-    	a[0][i] ^= t >> (64 - PI_WORD_SIZE);
-    	t <<= PI_WORD_SIZE;
-    }
-#else
     for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
     	a[0][i] ^= (word_t)t;
 #  if PI_WORD_SIZE < 64
     	t >>= PI_WORD_SIZE;
 #  endif
     }
-#endif
 
     pi((word_t*)a);
 }
@@ -481,17 +464,9 @@ int PI_INIT(
     }
     pi((word_t*)ctx->cis);
     ctx->ctr = 0;
-    /* endianes ? FIXME - bug is big endian style arranging of little endian words */
-#if BUG
-    for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
-    	ctx->ctr <<= PI_WORD_SIZE;
-    	ctx->ctr |= (uint64_t)ctx->cis[1][i];
-    }
-#else
     for (i = 0; i * PI_WORD_SIZE < 64; ++i) {
 		ctx->ctr |= (uint64_t)ctx->cis[1][i] << (i * PI_WORD_SIZE);
 	}
-#endif
     return 0;
 }
 
@@ -721,7 +696,6 @@ int PI_DECRYPT_SIMPLE(
         size_t key_len_B
         )
 {
-
     unsigned i;
     PI_CTX ctx;
 
@@ -764,6 +738,7 @@ int PI_DECRYPT_SIMPLE(
     cipher = &((uint8_t*)cipher)[cipher_len_B - PI_TAG_BYTES];
     PI_EXTRACT_TAG(&ctx, tmp_tag);
     if (memcmp(tmp_tag, cipher, PI_TAG_BYTES)) {
+#if DEBUG
     	printf("DBG: verification failed: clen = %lu; alen = %lu\n", clen, alen);
     	printf("Key:\n");
     	hexdump_block(key, key_len_B, 4, 16);
@@ -778,6 +753,7 @@ int PI_DECRYPT_SIMPLE(
 		printf("\nIS-Tag:\n");
 		hexdump_block(tmp_tag, PI_TAG_BYTES, 4, 16);
 		puts("");
+#endif /* DEBUG */
     	return -1;
     }
     return 0;

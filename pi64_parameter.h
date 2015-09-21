@@ -15,7 +15,6 @@ typedef uint64_t word_t;
 #define PI_TAG_BITS  512
 #define PI_TAG_BYTES (PI_TAG_BITS / 8)
 
-
 #define PI_MU_CONST { \
 	0xF0E8E4E2E1D8D4D2, \
 	0xD1CCCAC9C6C5C3B8, \

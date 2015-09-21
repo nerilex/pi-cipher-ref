@@ -40,7 +40,7 @@
 */
 
 /* please define PI_SIZE acoording to the primitive to implement (pi16cipher, pi32cipher or pi64cipher) */
-/* # define PI_SIZE 16 */
+#define PI_SIZE 32
 
 #ifdef SUPERCOP
 #include "ecrypt-portable.h"

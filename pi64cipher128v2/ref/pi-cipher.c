@@ -31,21 +31,38 @@
 #  define store_word_little(mem, val) store_u16_little((mem), (val))
 #  define PRI_xw "04"PRIx16
 
+#ifdef LITTLE_ENDIAN
+#undef LITTLE_ENDIAN
+#endif
 
-static uint16_t load_u16_little(const void *mem)
+#if defined(__BYTE_ORDER__)&&(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#define LITTLE_ENDIAN 1
+#else
+#define LITTLE_ENDIAN 0
+#endif
+
+static inline uint16_t load_u16_little(const void *mem)
 {
+#if LITTLE_ENDIAN
+	return *(uint16_t *)mem;
+#else
 	uint16_t ret;
 	const uint8_t *x = (const uint8_t *)mem;
 	ret =   x[0] <<  0
 	      | x[1] <<  8;
 	return ret;
+#endif
 }
 
-static void store_u16_little(void *mem, uint16_t val)
+static inline void store_u16_little(void *mem, uint16_t val)
 {
+#if LITTLE_ENDIAN
+	*(uint16_t *)mem = val;
+#else
 	uint8_t *x = (uint8_t *)mem;
 	x[0] = val & 0xff; val >>= 8;
 	x[1] = val & 0xff;
+#endif
 }
 
 #elif (PI_WORD_SIZE == 32)
@@ -53,8 +70,11 @@ static void store_u16_little(void *mem, uint16_t val)
 #  define store_word_little(mem, val) store_u32_little((mem), (val))
 #  define PRI_xw "08"PRIx32
 
-static uint32_t load_u32_little(const void *mem)
+static inline uint32_t load_u32_little(const void *mem)
 {
+#if LITTLE_ENDIAN
+	return *(uint32_t *)mem;
+#else
 	uint32_t ret;
 	const uint8_t *x = (const uint8_t *)mem;
 	ret =   (uint32_t)x[0] <<  0
@@ -62,15 +82,20 @@ static uint32_t load_u32_little(const void *mem)
 	      | (uint32_t)x[2] << 16
 	      | (uint32_t)x[3] << 24;
 	return ret;
+#endif
 }
 
-static void store_u32_little(void *mem, uint32_t val)
+static inline void store_u32_little(void *mem, uint32_t val)
 {
+#if LITTLE_ENDIAN
+	*(uint32_t *)mem = val;
+#else
 	uint8_t *x = (uint8_t *)mem;
 	x[0] = val & 0xff; val >>= 8;
 	x[1] = val & 0xff; val >>= 8;
 	x[2] = val & 0xff; val >>= 8;
 	x[3] = val & 0xff;
+#endif
 }
 
 #elif (PI_WORD_SIZE == 64)
@@ -78,8 +103,11 @@ static void store_u32_little(void *mem, uint32_t val)
 #  define store_word_little(mem, val) store_u64_little((mem), (val))
 #  define PRI_xw "016"PRIx64
 
-static uint64_t load_u64_little(const void *mem)
+static inline uint64_t load_u64_little(const void *mem)
 {
+#if LITTLE_ENDIAN
+	return *(uint64_t *)mem;
+#else
 	uint64_t ret;
 	const uint8_t *x = (const uint8_t *)mem;
 	ret =   (uint64_t)x[0] <<  0
@@ -91,10 +119,14 @@ static uint64_t load_u64_little(const void *mem)
 	      | (uint64_t)x[6] << 48
 	      | (uint64_t)x[7] << 56;
 	return ret;
+#endif
 }
 
-static void store_u64_little(void *mem, uint64_t val)
+static inline void store_u64_little(void *mem, uint64_t val)
 {
+#if LITTLE_ENDIAN
+	*(uint64_t *)mem = val;
+#else
 	uint8_t *x = (uint8_t *)mem;
 	x[0] = val & 0xff; val >>= 8;
 	x[1] = val & 0xff; val >>= 8;
@@ -104,6 +136,7 @@ static void store_u64_little(void *mem, uint64_t val)
 	x[5] = val & 0xff; val >>= 8;
 	x[6] = val & 0xff; val >>= 8;
 	x[7] = val & 0xff;
+#endif
 }
 
 #endif
@@ -167,41 +200,28 @@ static void dump_state(const word_t* a)
 #endif
 
 
-static word_t rotl(word_t x, uint8_t n)
+static inline word_t rotl(word_t x, uint8_t n)
 {
     return (x << n) | (x >> ((PI_WORD_SIZE) - n));
 }
 
-static void phi(
+static inline void phi(
         word_t dest[4],
         const word_t x[4],
-        const word_t c[4],
-        const uint8_t v[8],
-        const uint8_t rot[4])
+        const word_t const c[4],
+        const uint8_t const v[8],
+        const uint8_t const rot[4])
 {
-    word_t sum = 0;
-    uint8_t i;
-    i = 4;
-    do {
-        --i;
-        sum += x[i];
-    } while (i);
-    i = 4;
-    do {
-        --i;
-        dest[i] = rotl(c[i] + sum - x[v[i]], rot[i] );
-    } while (i);
-    sum = 0;
-    i = 4;
-    do {
-        --i;
-        sum ^= dest[i];
-    } while (i);
-    i = 4;
-    do {
-        --i;
-        dest[i] ^= sum;
-    } while (i);
+    word_t sum = x[0] + x[1] + x[2] + x[3];
+    dest[0] = rotl(c[0] + sum - x[v[0]], rot[0] );
+    dest[1] = rotl(c[1] + sum - x[v[1]], rot[1] );
+    dest[2] = rotl(c[2] + sum - x[v[2]], rot[2] );
+    dest[3] = rotl(c[3] + sum - x[v[3]], rot[3] );
+    sum = dest[0] ^ dest[1] ^ dest[2] ^ dest[3];
+    dest[0] ^= sum;
+    dest[1] ^= sum;
+    dest[2] ^= sum;
+    dest[3] ^= sum;
 }
 
 static const word_t mu_const[4] = PI_MU_CONST;
@@ -218,34 +238,29 @@ static const uint8_t ny_rot_const[4] = PI_NY_ROT_CONST;
 
 static const word_t pi_const[8][4] = PI_CONST;
 
-static void mu(
+static inline void mu(
         word_t dest[4],
         const word_t x[4])
 {
-    word_t t[4];
-    phi(t, x, mu_const, mu_v_const, mu_rot_const);
-    dest[0] = t[2];
-    dest[1] = t[3];
-    dest[2] = t[0];
-    dest[3] = t[1];
+    phi(dest, x, mu_const, mu_v_const, mu_rot_const);
 }
 
-static void ny(
+static inline void ny(
         word_t dest[4],
         const word_t x[4])
 {
     phi(dest, x, ny_const, ny_v_const, ny_rot_const);
 }
 
-static void sigma(
+static inline void sigma(
         word_t dest[4],
         const word_t x1[4],
         const word_t x2[4] )
 {
-    dest[3] = x1[0] + x2[0];
-    dest[0] = x1[1] + x2[1];
-    dest[1] = x1[2] + x2[2];
-    dest[2] = x1[3] + x2[3];
+    dest[3] = x1[2] + x2[0];
+    dest[0] = x1[3] + x2[1];
+    dest[1] = x1[0] + x2[2];
+    dest[2] = x1[1] + x2[3];
 }
 
 static void ast(

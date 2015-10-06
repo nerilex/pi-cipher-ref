@@ -714,7 +714,7 @@ int PI_DECRYPT_SIMPLE(
     if (nonce_secret) {
         PI_DECRYPT_SMN(&ctx, nonce_secret, cipher);
         cipher_len_B -= PI_CT_BLOCK_LENGTH_BYTES;
-	cipher = &((uint8_t*)cipher)[PI_CT_BLOCK_LENGTH_BYTES];
+        cipher = &((uint8_t*)cipher)[PI_CT_BLOCK_LENGTH_BYTES];
     }
     i = 1;
     while (cipher_len_B - PI_TAG_BYTES >= PI_PT_BLOCK_LENGTH_BYTES) {

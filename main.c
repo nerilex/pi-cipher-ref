@@ -178,7 +178,7 @@ void generate_single_testvector(
 
 	print_item("KEY", key, key_len);
 	print_item("NPUB", npub, npub_len);
-	print_item("NSEC", nsec, PI_PT_BLOCK_LENGTH_BYTES);
+	print_item("NSEC", nsec, nsec ? PI_PT_BLOCK_LENGTH_BYTES : 0);
 	print_item("MSG", m, mlen);
 	print_item("AD", ad, adlen);
 
@@ -188,17 +188,24 @@ void generate_single_testvector(
 	print_item("CIPHER", c, clen);
 	fflush(stdout);
 
-	v = PI_DECRYPT_SIMPLE(m_check, &mlen_check, nsec_check, c, clen, ad, adlen, npub, npub_len, key, key_len);
+	v = PI_DECRYPT_SIMPLE(m_check, &mlen_check, nsec ? nsec_check : NULL, c, clen, ad, adlen, npub, npub_len, key, key_len);
 
 	if (v) {
 		printf("!verification failed (%d)\n", v);
 	}
 
-	if (mlen != mlen_check || memcmp(m, m_check, mlen)) {
-		print_item("!ERROR MSG", m_check, mlen_check);
+	if (mlen != mlen_check) {
+		printf("!ERROR MSG (%d)\n", mlen_check);
+	} else {
+		if (memcmp(m, m_check, mlen)) {
+			print_item("!ERROR MSG CONTENT", m_check, mlen_check);
+		}
 	}
-	if (memcmp(nsec, nsec_check, PI_PT_BLOCK_LENGTH_BYTES)) {
-		print_item("!ERROR MSG", m_check, mlen_check);
+
+	if (nsec) {
+		if (memcmp(nsec, nsec_check, PI_PT_BLOCK_LENGTH_BYTES)) {
+			print_item("!ERROR MSG", m_check, mlen_check);
+		}
 	}
 	putchar('\n');
 	fflush(stdout);
@@ -220,15 +227,17 @@ void generate_testvectors(size_t key_len, size_t npub_len) {
 		for (ad_len = 0; ad_len <= sizeof(ad); ++ad_len) {
 			printf("[msg_len = %zu]\n", msg_len);
 			printf("[ad_len = %zu]\n\n", ad_len);
-			for (i = 0; i < 8; ++i) {
+			for (i = 0; i < 9; ++i) {
 				printf("[vector #%zu (%zu)]\n", c, i + 1);
 				++c;
 				fill_random(key, sizeof(key));
 				fill_random(npub, sizeof(npub));
-				fill_random(nsec, sizeof(nsec));
+				if (i < 8) {
+					fill_random(nsec, sizeof(nsec));
+				}
 				fill_random(ad, ad_len);
 				fill_random(msg, msg_len);
-				generate_single_testvector(msg, msg_len, ad, ad_len, nsec, npub, npub_len, key, key_len);
+				generate_single_testvector(msg, msg_len, ad, ad_len, (i == 8) ? NULL : nsec, npub, npub_len, key, key_len);
 			}
 		}
 	}

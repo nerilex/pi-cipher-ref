@@ -1,7 +1,9 @@
+PI_SIZES = 16 32 64
+
 PI_SIZE = 16
 
-target = main_$(PI_SIZE)
-obj = pi$(PI_SIZE)-cipher.o
+target = main_$(1)
+obj = pi$(1)-cipher.o
 size = size
 
 ifdef CROSS
@@ -13,22 +15,44 @@ endif
 
 OPT = -Os
 
-CFLAGS = "-DPI_SIZE=$(PI_SIZE)" $(OPT)
+CFLAGS = "-DPI_SIZE=$(PI_SIZE)" -g $(OPT)
 
 all: test report
-
-clean:
-	rm -f $(target) $(obj)
 	
-test: $(target)
+test: $(foreach PI_SIZE,$(PI_SIZES), test_$(PI_SIZE))
 
-$(target): main.c $(obj)
-	$(CC) $(CFLAGS) -o $@ $^
+report: $(foreach PI_SIZE,$(PI_SIZES), report_$(PI_SIZE))
+
+clean: $(foreach PI_SIZE,$(PI_SIZES), clean_$(PI_SIZE))
+
+run: $(foreach PI_SIZE,$(PI_SIZES), run_$(PI_SIZE))
+
+
+define Template
+
+$(call target,$(1)): main.c $(call obj,$(1))
+	$(CC) $(CFLAGS) -o $$@ $$^
 	
-$(obj): pi-cipher.c pi-cipher.h pi$(PI_SIZE)_parameter.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+$(call obj,$(1)): pi-cipher.c pi-cipher.h pi$(1)_parameter.h
+	$(CC) $(CFLAGS) -c -o $$@ $$<
 
-report: $(obj)
-	$(size) $^
+.PHONY: clean_$(1)
+.PHONY: test_$(1)
+.PHONY: report_$(1)
+.PHONY: run_$(1)
 
+clean_$(1):
+	rm -f $(call target,$(1)) $(call obj,$(1))
+	
+test_$(1): $(call target,$(1))
+
+report_$(1): $(obj)
+	$(size) $$^
+
+run_$(1): $(call target,$(1))
+	./$$<
+
+endef
+
+$(foreach PI_SIZE,$(PI_SIZES), $(eval $(call Template,$(PI_SIZE))))
 

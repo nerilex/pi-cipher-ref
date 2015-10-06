@@ -99,7 +99,7 @@ typedef u64 uint64_t;
 #define INIT_NAME(x)                    pi ## x ## _init
 #define PROCESS_AD_BLOCK_NAME(x)        pi ## x ## _process_ad_block
 #define PROCESS_AD_LAST_BLOCK_NAME(x)   pi ## x ## _process_ad_last_block
-#define PROCESS_SMN_NAME(x)             pi ## x ## _process_smn
+#define ENCRYPT_SMN_NAME(x)             pi ## x ## _encrypt_smn
 #define DECRYPT_SMN_NAME(x)             pi ## x ## _decrypt_smn
 #define ENCRYPT_BLOCK_NAME(x)           pi ## x ## _encrypt_block
 #define ENCRYPT_LAST_BLOCK_NAME(x)      pi ## x ## _encrypt_last_block
@@ -116,7 +116,7 @@ typedef u64 uint64_t;
 #define PI_INIT                         NAME(INIT_NAME, PI_WORD_SIZE)
 #define PI_PROCESS_AD_BLOCK             NAME(PROCESS_AD_BLOCK_NAME, PI_WORD_SIZE)
 #define PI_PROCESS_AD_LAST_BLOCK        NAME(PROCESS_AD_LAST_BLOCK_NAME, PI_WORD_SIZE)
-#define PI_PROCESS_SMN                  NAME(PROCESS_SMN_NAME, PI_WORD_SIZE)
+#define PI_ENCRYPT_SMN                  NAME(ENCRYPT_SMN_NAME, PI_WORD_SIZE)
 #define PI_DECRYPT_SMN                  NAME(DECRYPT_SMN_NAME, PI_WORD_SIZE)
 #define PI_ENCRYPT_BLOCK                NAME(ENCRYPT_BLOCK_NAME, PI_WORD_SIZE)
 #define PI_ENCRYPT_LAST_BLOCK           NAME(ENCRYPT_LAST_BLOCK_NAME, PI_WORD_SIZE)
@@ -140,9 +140,9 @@ typedef struct {
 int PI_INIT(
         PI_CTX *ctx,
         const void *key,
-        size_t key_length_b,
+        size_t key_length_B,
         const void *pmn,
-        size_t pmn_length_b);
+        size_t pmn_length_B);
 
 void PI_PROCESS_AD_BLOCK(
         PI_CTX *ctx,
@@ -152,10 +152,10 @@ void PI_PROCESS_AD_BLOCK(
 void PI_PROCESS_AD_LAST_BLOCK(
         PI_CTX *ctx,
         const void *ad,
-        size_t ad_length_b,
+        size_t ad_length_B,
         unsigned long ad_num );
 
-void PI_PROCESS_SMN(
+void PI_ENCRYPT_SMN(
         PI_CTX *ctx,
         void *c0,
         const void *smn);
@@ -170,7 +170,7 @@ void PI_ENCRYPT_LAST_BLOCK(
         PI_CTX *ctx,
         void *dest,
         const void *src,
-        size_t length_b,
+        size_t length_B,
 		unsigned long  num );
 
 void PI_EXTRACT_TAG(
@@ -187,14 +187,12 @@ void PI_DECRYPT_LAST_BLOCK(
         PI_CTX *ctx,
         void *dest,
         const void *src,
-        size_t length_b,
+        size_t length_B,
 		unsigned long  num );
 
 void PI_ENCRYPT_SIMPLE(
         void *cipher,
         size_t *cipher_len_B,
-        void *tag,
-        size_t *tag_length_B,
         const void *msg,
         size_t msg_len_B,
         const void *ad,

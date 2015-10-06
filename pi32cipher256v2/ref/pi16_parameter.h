@@ -15,13 +15,31 @@ typedef uint16_t word_t;
 #define PI_TAG_BITS  128
 #define PI_TAG_BYTES (PI_TAG_BITS / 8)
 
+#define PI_MU_CONST_0 0xF0E8
+#define PI_MU_CONST_1 0xE4E2
+#define PI_MU_CONST_2 0xE1D8
+#define PI_MU_CONST_3 0xD4D2
 
 #define PI_MU_CONST { 0xF0E8, 0xE4E2, 0xE1D8, 0xD4D2 }
+
+#define PI_MU_ROT_CONST_0 1
+#define PI_MU_ROT_CONST_1 4
+#define PI_MU_ROT_CONST_2 9
+#define PI_MU_ROT_CONST_3 11
 
 #define PI_MU_ROT_CONST { 1, 4, 9, 11 }
 
 #define PI_NY_CONST { 0xD1CC, 0xCAC9, 0xC6C5, 0xC3B8 }
 
+#define PI_NY_CONST_0 0xD1CC
+#define PI_NY_CONST_1 0xCAC9
+#define PI_NY_CONST_2 0xC6C5
+#define PI_NY_CONST_3 0xC3B8
+
+#define PI_NY_ROT_CONST_0 2
+#define PI_NY_ROT_CONST_1 5
+#define PI_NY_ROT_CONST_2 7
+#define PI_NY_ROT_CONST_3 13
 
 #define PI_NY_ROT_CONST { 2, 5, 7, 13 }
 

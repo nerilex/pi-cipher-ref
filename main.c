@@ -183,12 +183,12 @@ void generate_single_testvector(
 	print_item("AD", ad, adlen);
 
 	fflush(stdout);
-	PI_ENCRYPT_SIMPLE(c, &clen, &c[sizeof(c) - PI_TAG_BYTES], NULL, m, mlen, ad, adlen, nsec, npub, npub_len, key, key_len);
+	PI_ENCRYPT_SIMPLE(c, &clen, m, mlen, ad, adlen, nsec, npub, npub_len, key, key_len);
 
-	print_item("CIPHER", c, clen + PI_TAG_BYTES);
+	print_item("CIPHER", c, clen);
 	fflush(stdout);
 
-	v = PI_DECRYPT_SIMPLE(m_check, &mlen_check, nsec_check, c, clen + PI_TAG_BYTES, ad, adlen, npub, npub_len, key, key_len);
+	v = PI_DECRYPT_SIMPLE(m_check, &mlen_check, nsec_check, c, clen, ad, adlen, npub, npub_len, key, key_len);
 
 	if (v) {
 		printf("!verification failed (%d)\n", v);

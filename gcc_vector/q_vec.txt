@@ -1,0 +1,79 @@
+== simple vector for pi16 ==
+Testsystem for pi16cipher
+    f9 64 c8 28 53 0d bd 2f 
+    58 34 cf 0f d8 c8 fa 55 
+    8b 13 7c 06 43 f0 66 98 
+    c7 15 ec 4b ce 8b 29 31 
+    ea 1a 7c 74 fb 30 61 7b 
+    c3 2f 8d cc b4 e9 f2 4c 
+    28 06 65 9f 58 a3 5f e2 
+    8a ed 51 1d a2 81 ee bd 
+    1c 85 9a 2d 0f 3b 63 f2 
+    27 fa 9c 49 9e 3c b8 c0 
+
+== simple vector for pi32 ==
+Testsystem for pi32cipher
+    88 82 fd 25 97 97 9f d0 
+    a7 74 5a 3b 65 8b cf ac 
+    df b4 24 be 92 94 38 c6 
+    da ca 29 f6 27 62 cf 22 
+    0d e5 14 71 e6 af 8f 26 
+    b7 a5 55 92 42 44 47 c5 
+    8d cb 8d 2e 5f f5 cb 3b 
+    ad 48 a5 84 46 96 13 7c 
+    e4 c4 10 f8 7f 98 da af 
+    ca 58 4d f3 d8 ba 37 21 
+    4b 62 83 4d 08 3a 99 86 
+    9e 83 39 c0 4d a3 31 7c 
+    19 96 38 73 58 7a ce 56 
+    89 b5 56 a3 2c 2c 1f b0 
+    c3 e9 7f 6f a3 fc 42 73 
+    47 ba a6 a7 d5 e7 5a bc 
+    7c 6a 3a c2 9a 29 d6 74 
+    91 7f 91 fd 94 22 0f 39 
+    88 f8 62 3c d2 88 fa 79 
+    d4 7f b8 0f 8d 70 10 2f 
+
+== simple vector for pi64 ==
+Testsystem for pi64cipher
+    96 eb 69 04 b2 aa ae ee 
+    62 45 3d e7 dd 13 3b 40 
+    fc cd 84 f5 19 1e f9 81 
+    4d cb 83 d0 af 6a 99 4d 
+    19 c0 05 99 c0 bc 87 c4 
+    ea a2 b3 ab 9b a1 d2 4c 
+    32 1c 67 76 68 12 fc 20 
+    72 8f c3 d3 25 4a cc 01 
+    99 31 ad 91 22 51 51 8b 
+    f1 cd d6 f8 cb 26 90 e2 
+    70 e4 44 a4 83 3c 18 ce 
+    19 f7 d3 36 89 dd ab 81 
+    76 1c 9f 36 c6 b4 79 21 
+    e2 a2 42 2f f0 bb 44 7e 
+    6c a5 e8 9d 01 09 04 ed 
+    ea 4e 66 3a 55 0e 58 5a 
+    67 fc cf 00 70 4f 48 fc 
+    1a f9 f7 16 b3 1f b1 8a 
+    ea 60 66 7e b7 af 20 3e 
+    fe 12 29 dc 2f 37 97 49 
+    f0 2d 80 36 7e 54 43 b4 
+    a9 e7 bc 37 23 b9 2d f1 
+    c3 39 ee 2e 49 d7 72 bf 
+    42 4e 7c 57 c9 c9 1f d8 
+    56 81 84 15 eb c2 81 dd 
+    80 5c a1 0c 07 47 99 ec 
+    47 8c db 8a fc f6 6b af 
+    d1 1f 96 6e b5 97 3a 15 
+    1d c1 09 e2 74 b6 7c 3d 
+    7f 3d 0c 72 4e d3 4f 15 
+    3b ea 80 32 9b 73 3d b7 
+    ed cd a4 6c 7d 54 2a 27 
+    bd 52 86 4f 47 1e 68 e5 
+    d5 be ef cc a2 4e e3 b8 
+    4c f0 97 eb 90 36 8a 09 
+    37 c6 e0 c2 09 9f 98 6d 
+    0d 73 4a eb 28 53 51 e4 
+    b5 7a 58 f6 b0 2e b9 2f 
+    26 b1 51 9e c3 f5 55 68 
+    a4 48 43 36 1b bf 01 6d 
+
